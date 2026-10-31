@@ -3,6 +3,8 @@ package com.fehlenfusion.immichscreensaver;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.Typeface;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -25,6 +27,10 @@ final class Tiles {
     static final int BANNER_W_DP = 112;
     static final int BANNER_H_DP = 63;
     static final float FOCUS_SCALE = 1.18f;
+    /** One corner radius for everything on the home screen: tiles, cards, the now playing card. */
+    static final int RADIUS_DP = 10;
+    /** One weight for titles everywhere. */
+    static final Typeface MEDIUM = Typeface.create("sans-serif-medium", Typeface.NORMAL);
     private static final float TILT_DEG = 7f;
 
     /** Last D-pad key on the home/all-apps screens, so a newly focused tile can tilt toward it. */
@@ -70,18 +76,16 @@ final class Tiles {
 
     /**
      * Settings as an ordinary tile at the end of the row, muted like tvOS's Settings icon:
-     * a dark translucent card with a dim gear, so it does not compete with the apps.
+     * the same frosted material as the now playing card (the caller attaches a {@link Frost})
+     * with a dim gear, so it does not compete with the apps.
      */
     static View settingsTile(Context c) {
         FrameLayout tile = baseTile(c);
         tile.setContentDescription("Settings and more");
-        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0xFF2A2E37, 0xFF1C1F26});
-        tile.setBackground(bg);
-        TextView gear = label(c, "⚙", 26, 0xB3FFFFFF);
-        gear.setShadowLayer(0, 0, 0, 0);
-        gear.setGravity(Gravity.CENTER);
-        tile.addView(gear, new FrameLayout.LayoutParams(-1, -1));
+        ImageView gear = new ImageView(c);
+        gear.setImageResource(R.drawable.ic_settings);
+        gear.setAlpha(0.8f);
+        tile.addView(gear, new FrameLayout.LayoutParams(dp(c, 26), dp(c, 26), Gravity.CENTER));
         return tile;
     }
 
@@ -111,7 +115,7 @@ final class Tiles {
         TextView t = label(c, title, 13, Color.WHITE);
         t.setSingleLine(true);
         t.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        t.setTypeface(MEDIUM);
         text.addView(t);
         if (subtitle != null && !subtitle.isEmpty()) {
             TextView st = label(c, subtitle, 11, 0xD9FFFFFF);
@@ -148,7 +152,7 @@ final class Tiles {
         inner.addView(arrow);
         TextView t = label(c, "View all", 14, Color.WHITE);
         t.setGravity(Gravity.CENTER);
-        t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        t.setTypeface(MEDIUM);
         inner.addView(t);
         TextView n = label(c, libraryName, 12, 0xB3FFFFFF);
         n.setGravity(Gravity.CENTER);
@@ -165,44 +169,58 @@ final class Tiles {
         final FrameLayout tile = new FrameLayout(c);
         tile.setFocusable(true);
         tile.setClickable(true);
-        final float radius = dp(c, 10);
-        tile.setOutlineProvider(new ViewOutlineProvider() {
+        rounded(tile, dp(c, RADIUS_DP));
+        final Drawable gloss = gloss(c, dp(c, RADIUS_DP), dp(c, BANNER_W_DP));
+        tile.setOnFocusChangeListener((v, has) -> {
+            ((FrameLayout) v).setForeground(has ? gloss : null);
+            focusMotion(v, has, FOCUS_SCALE, dp(c, 6), dp(c, 22));
+        });
+        return tile;
+    }
+
+    static void rounded(View v, final float radius) {
+        v.setOutlineProvider(new ViewOutlineProvider() {
             @Override
             public void getOutline(View view, Outline outline) {
                 outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
             }
         });
-        tile.setClipToOutline(true);
-        tile.setCameraDistance(8000 * c.getResources().getDisplayMetrics().density);
+        v.setClipToOutline(true);
+    }
 
-        // Soft gloss: light falling on the top of the tile, fading out before the middle.
-        final GradientDrawable gloss = new GradientDrawable();
+    /** Soft gloss: light falling on the top of a focused tile, fading out before the middle. */
+    static Drawable gloss(Context c, float radius, float width) {
+        GradientDrawable gloss = new GradientDrawable();
         gloss.setGradientType(GradientDrawable.RADIAL_GRADIENT);
         gloss.setColors(new int[]{0x38FFFFFF, 0x10FFFFFF, 0x00FFFFFF});
         gloss.setGradientCenter(0.35f, 0f);
-        gloss.setGradientRadius(dp(c, BANNER_W_DP) * 0.75f);
+        gloss.setGradientRadius(width * 0.75f);
         gloss.setCornerRadius(radius);
+        return gloss;
+    }
 
-        tile.setOnFocusChangeListener((v, has) -> {
-            ((FrameLayout) v).setForeground(has ? gloss : null);
-            if (has) {
-                // Lean in from the direction we arrived from, then settle flat (tvOS "tilt").
-                float tilt = lastNavKey == KeyEvent.KEYCODE_DPAD_RIGHT ? -TILT_DEG
-                        : lastNavKey == KeyEvent.KEYCODE_DPAD_LEFT ? TILT_DEG : 0f;
-                v.setRotationY(tilt);
-                v.animate().scaleX(FOCUS_SCALE).scaleY(FOCUS_SCALE).rotationY(0f)
-                        .translationY(-dp(c, 6))
-                        .setInterpolator(new OvershootInterpolator(1.1f))
-                        .setDuration(320);
-                v.setElevation(dp(c, 22));
-            } else {
-                v.animate().scaleX(1f).scaleY(1f).rotationY(0f).translationY(0f)
-                        .setInterpolator(new DecelerateInterpolator())
-                        .setDuration(180);
-                v.setElevation(0);
-            }
-        });
-        return tile;
+    /**
+     * The one focus motion on the home screen: rise, grow, cast a soft shadow, and lean in from
+     * the direction we arrived from before settling flat (tvOS "tilt"). No outlines.
+     */
+    static void focusMotion(View v, boolean has, float scale, float lift, float elevation) {
+        if (v.getCameraDistance() < 8000 * v.getResources().getDisplayMetrics().density) {
+            v.setCameraDistance(8000 * v.getResources().getDisplayMetrics().density);
+        }
+        if (has) {
+            float tilt = lastNavKey == KeyEvent.KEYCODE_DPAD_RIGHT ? -TILT_DEG
+                    : lastNavKey == KeyEvent.KEYCODE_DPAD_LEFT ? TILT_DEG : 0f;
+            v.setRotationY(tilt);
+            v.animate().scaleX(scale).scaleY(scale).rotationY(0f).translationY(-lift)
+                    .setInterpolator(new OvershootInterpolator(1.1f))
+                    .setDuration(320);
+            v.setElevation(elevation);
+        } else {
+            v.animate().scaleX(1f).scaleY(1f).rotationY(0f).translationY(0f)
+                    .setInterpolator(new DecelerateInterpolator())
+                    .setDuration(180);
+            v.setElevation(0);
+        }
     }
 
     static TextView label(Context c, String s, int sp, int color) {
@@ -210,7 +228,13 @@ final class Tiles {
         t.setText(s);
         t.setTextColor(color);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        t.setShadowLayer(6f, 0f, 1f, 0x99000000);
+        shadow(t);
         return t;
+    }
+
+    /** The one text shadow used on the home screen, scaled to the text size. */
+    static void shadow(TextView t) {
+        float sp = t.getTextSize() / t.getResources().getDisplayMetrics().scaledDensity;
+        t.setShadowLayer(Math.min(12f, Math.max(4f, sp * 0.4f)), 0f, Math.max(1f, sp / 30f), 0x80000000);
     }
 }

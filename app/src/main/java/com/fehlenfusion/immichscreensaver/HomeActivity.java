@@ -12,6 +12,7 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -54,6 +55,8 @@ public final class HomeActivity extends Activity {
     private LinearLayout favRow;
     private HorizontalScrollView favScroll;
     private View settingsTile;
+    private Frost settingsFrost;
+    private Frost clockFrost;
     private LinearLayout media;
     private MediaRow[] rows = new MediaRow[0];
     private View lastAppFocus;
@@ -283,7 +286,7 @@ public final class HomeActivity extends Activity {
             view.setOrientation(LinearLayout.VERTICAL);
             view.setClipChildren(false);
             TextView header = Tiles.label(HomeActivity.this, title, 16, 0xE6FFFFFF);
-            header.setTypeface(Typeface.DEFAULT_BOLD);
+            header.setTypeface(Tiles.MEDIUM);
             header.setPadding(0, Tiles.dp(HomeActivity.this, 6), 0, 0);
             view.addView(header);
             scroll = new HorizontalScrollView(HomeActivity.this);
@@ -465,31 +468,61 @@ public final class HomeActivity extends Activity {
         root.addView(dim, new FrameLayout.LayoutParams(-1, -1));
 
         int padX = Tiles.dp(this, 48);
-        LinearLayout clock = new LinearLayout(this);
+        LinearLayout clock = new LinearLayout(this) {
+            /** Children wrap their content, then all stretch to the widest one. */
+            @Override
+            protected void onMeasure(int widthSpec, int heightSpec) {
+                super.onMeasure(widthSpec, heightSpec);
+                int max = 0;
+                for (int i = 0; i < getChildCount(); i++) {
+                    View ch = getChildAt(i);
+                    if (ch.getVisibility() != GONE) max = Math.max(max, ch.getMeasuredWidth());
+                }
+                for (int i = 0; i < getChildCount(); i++) {
+                    View ch = getChildAt(i);
+                    if (ch.getVisibility() == GONE || ch.getMeasuredWidth() == max) continue;
+                    ch.measure(MeasureSpec.makeMeasureSpec(max, MeasureSpec.EXACTLY),
+                            MeasureSpec.makeMeasureSpec(ch.getMeasuredHeight(), MeasureSpec.EXACTLY));
+                }
+            }
+        };
         clock.setOrientation(LinearLayout.VERTICAL);
         clock.setPadding(padX, Tiles.dp(this, 36), padX, 0);
+        // The date and time sit on the same frosted panel as the now playing card, and both
+        // stretch to the wider of the two so they stack as one block.
+        LinearLayout face = new LinearLayout(this);
+        face.setOrientation(LinearLayout.VERTICAL);
+        face.setPadding(Tiles.dp(this, 16), Tiles.dp(this, 10), Tiles.dp(this, 20), Tiles.dp(this, 12));
+        Tiles.rounded(face, Tiles.dp(this, Tiles.RADIUS_DP));
+        clockFrost = new Frost(face, Tiles.dp(this, Tiles.RADIUS_DP));
+        clockFrost.setSource(photoHost);
+        // Same type system as the cards: medium for the date line, regular numerals (light looked
+        // thin next to the card's medium titles).
         TextClock date = new TextClock(this);
         date.setFormat12Hour("EEEE, MMMM d");
         date.setFormat24Hour("EEEE, MMMM d");
-        styleClock(date, 17);
-        clock.addView(date);
+        styleClock(date, 16, 0xD9FFFFFF);
+        date.setTypeface(Tiles.MEDIUM);
+        face.addView(date);
         TextClock time = new TextClock(this);
         time.setFormat12Hour("h:mm");
         time.setFormat24Hour("H:mm");
-        styleClock(time, 72);
-        time.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
+        styleClock(time, 60, Color.WHITE);
+        time.setTypeface(Typeface.create("sans-serif", Typeface.NORMAL));
+        time.setLetterSpacing(-0.02f);
         time.setIncludeFontPadding(false);
-        clock.addView(time);
+        face.addView(time);
+        clock.addView(face, new LinearLayout.LayoutParams(-2, -2));
         clockBox = clock;
         root.addView(clock, new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
 
-        // Now playing (any media app): top-right, opposite the clock. Up from the apps reaches it.
+        // Now playing (any media app): directly above the clock, part of the same block.
+        // Up from the apps reaches it; it fades with the clock when the Jellyfin rows open.
         npView = new NowPlayingView(this, true, nowPlaying);
         npView.setVisibility(View.GONE);
-        FrameLayout.LayoutParams npl = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
-        npl.topMargin = Tiles.dp(this, 36);
-        npl.rightMargin = padX;
-        root.addView(npView, npl);
+        LinearLayout.LayoutParams npl = new LinearLayout.LayoutParams(-2, -2);
+        npl.bottomMargin = Tiles.dp(this, 10);
+        clock.addView(npView, 0, npl);
         npView.setBackdropSource(photoHost);
 
         // Everything below the clock scrolls vertically: apps, then the Jellyfin rows.
@@ -547,6 +580,13 @@ public final class HomeActivity extends Activity {
         // Settings: a muted tile at the end of the app row (added in buildFavorites).
         settingsTile = Tiles.settingsTile(this);
         settingsTile.setOnClickListener(v -> showMenu());
+        settingsFrost = new Frost(settingsTile, Tiles.dp(this, Tiles.RADIUS_DP));
+        settingsFrost.setSource(photoHost);
+        if (Build.VERSION.SDK_INT >= 23) {
+            // Re-blur behind the settings tile when the row scrolls under a different part of the photo.
+            favScroll.setOnScrollChangeListener((v, x, y, ox, oy) -> settingsFrost.refreshSoon());
+            pager.setOnScrollChangeListener((v, x, y, ox, oy) -> settingsFrost.refreshSoon());
+        }
         chrome = new View[]{bottom, pager}; // the clock stays when idle
         return root;
     }
@@ -564,10 +604,10 @@ public final class HomeActivity extends Activity {
                 .show();
     }
 
-    private static void styleClock(TextView t, int sp) {
-        t.setTextColor(Color.WHITE);
+    private static void styleClock(TextView t, int sp, int color) {
+        t.setTextColor(color);
         t.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        t.setShadowLayer(10f, 0f, 2f, 0x99000000);
+        Tiles.shadow(t);
     }
 
     // ------------------------------------------------------------ photos
@@ -585,7 +625,11 @@ public final class HomeActivity extends Activity {
             p.info = false;
             p.clock = Prefs.CLOCK_OFF;
             slideshow = new Slideshow(this, p, true);
-            slideshow.setOnPhotoShown(() -> npView.refreshBackdrop());
+            slideshow.setOnPhotoShown(() -> {
+                npView.refreshBackdrop();
+                settingsFrost.refresh();
+                clockFrost.refresh();
+            });
             photoHost.addView(slideshow.getView(), new FrameLayout.LayoutParams(-1, -1));
         }
         slideshow.start();
