@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The Immich server address is entered at runtime (QR setup), so it is not known at build
+  time and network-security-config cannot whitelist "any LAN IP". Cleartext HTTP therefore
+  has to be permitted for the app. The app only ever talks to the one configured server
+  (and serves its own setup page on the LAN while the setup screen is open).
+  HTTPS server URLs work as well and are preferred when available.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

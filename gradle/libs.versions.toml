@@ -1,0 +1,12 @@
+[versions]
+agp = "9.2.1"
+junit = "4.13.2"
+orgJson = "20240303"
+
+[libraries]
+# Test-only. The app itself has no dependencies.
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+org-json = { group = "org.json", name = "json", version.ref = "orgJson" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }

@@ -1,0 +1,80 @@
+# Immich Screensaver for Android TV
+
+A very small (~55 KB) Android TV screensaver (`DreamService`) that shows photos from one
+[Immich](https://immich.app) album full-screen, with a clock and date in the bottom-left corner.
+Built for a Chromecast with Google TV (2 GB RAM), so it is deliberately frugal:
+
+- No third-party libraries (only `HttpURLConnection`, `BitmapFactory`, `org.json`).
+- Only permission: `INTERNET`. No analytics, no crash reporting, no logging of URLs or keys.
+- Photos only: videos, trashed, archived, hidden and locked assets are skipped.
+- Downloads Immich's `preview` rendition (never originals), decoded to at most 1920×1080 in
+  `RGB_565`. At most two bitmaps are in memory at any time; no disk or memory cache.
+- One photo every 20 s with a 1.5 s cross-fade, shuffled with no repeats until the whole album
+  has been shown. The album is re-fetched each time the screensaver starts.
+- Network errors keep the current photo (or black + clock) and retry after 30 s, backing off to 5 min.
+- Nothing runs while the screensaver is not active.
+
+**No server address, album or API key is in the code or the APK.** They are entered on the TV at
+runtime through a QR-code setup page and stored in app-private storage (backup disabled).
+
+## Setup on the TV (QR code)
+
+1. Open **Immich Screensaver** from the TV's apps row. It shows a QR code.
+2. Scan it with your phone (phone and TV on the same network). A setup page opens.
+3. Enter the Immich server address (e.g. `http://192.168.1.10:2283`) and an API key, then pick the album.
+
+Create the API key in Immich under *Account settings → API keys* with only these permissions:
+`album.read`, `asset.read`, `asset.view`. The app never calls a write endpoint.
+
+The setup page is served by the TV itself only while the setup screen is open. Every link carries
+a random one-time token. The page is plain HTTP on your LAN, so set it up from your home network.
+Open the app again at any time to change the server or album.
+
+## Build
+
+Requirements: Android SDK (platform 35), JDK 17+ (Android Studio's bundled JBR works).
+
+```sh
+./gradlew test assembleRelease
+# -> app/build/outputs/apk/release/app-release.apk
+```
+
+The release build is minified and signed with your local debug keystore
+(`~/.android/debug.keystore`). Keystores are not part of this repo.
+
+`QrCodeTest` writes sample QR images to `app/build/qr-dump/`. Optionally verify them with a real
+decoder:
+
+```sh
+python3 -c "import cv2,glob;d=cv2.QRCodeDetector();[print(f,d.detectAndDecode(cv2.imread(f,0))[0]) for f in sorted(glob.glob('app/build/qr-dump/*.pgm'))]"
+```
+
+## Install
+
+```sh
+adb connect <tv-ip>:5555        # after enabling network debugging on the TV
+adb install -r app-release.apk
+# note the current screensaver so you can restore it later:
+adb shell settings get secure screensaver_components
+adb shell settings put secure screensaver_components com.fehlenfusion.immichscreensaver/.PhotoDreamService
+```
+
+Google TV does not list third-party screensavers in its settings, which is why the `adb` line is needed.
+
+## Undo
+
+```sh
+adb shell settings put secure screensaver_components <value you noted above>
+adb uninstall com.fehlenfusion.immichscreensaver
+```
+
+## Notes
+
+- Cleartext HTTP is allowed app-wide because the server address is only known at runtime
+  (Android's network security config cannot whitelist "any LAN IP"). HTTPS URLs work too.
+- Immich API: on servers that still return `assets` from `GET /api/albums/{id}` that list is used.
+  Immich v3.2+ uses `POST /api/search/metadata` with `filter.albumIds` and cursor paging, and older
+  servers fall back to the legacy `albumIds`/`page` search body. Tested against the v3.3.5 OpenAPI spec.
+- If you see colour banding in skies or gradients, change `BITMAP_CONFIG` in
+  `PhotoDreamService` to `ARGB_8888` (doubles bitmap memory to ~8 MB each).
+- Photos are fit to the screen on black (`FIT_CENTER`, never cropped). Use `CENTER_CROP` to fill instead.
