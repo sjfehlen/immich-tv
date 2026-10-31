@@ -95,4 +95,14 @@ public class FeatureTest {
         assertEquals(Arrays.asList(B, A, C, B, A), Arrays.asList(p.next(), p.next(), p.next(), p.next(), p.next()));
         assertEquals("Shuffle", Prefs.orderLabel(Prefs.ORDER_SHUFFLE));
     }
+
+    @Test
+    public void favoritesMoveWithinBounds() {
+        java.util.List<String> l = Arrays.asList("a", "b", "c");
+        assertEquals(Arrays.asList("b", "a", "c"), AppsRepo.move(l, "b", -1));
+        assertEquals(Arrays.asList("a", "c", "b"), AppsRepo.move(l, "b", 1));
+        assertEquals(Arrays.asList("a", "b", "c"), AppsRepo.move(l, "a", -1)); // already first
+        assertEquals(Arrays.asList("a", "b", "c"), AppsRepo.move(l, "c", 1));  // already last
+        assertEquals(Arrays.asList("a", "b", "c"), AppsRepo.move(l, "zzz", 1));
+    }
 }

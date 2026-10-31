@@ -26,6 +26,7 @@ final class Prefs {
     int clock = CLOCK_FULL;
     boolean info = true;
     boolean dim = false;
+    boolean homePhotos = true;
 
     static Prefs load(Context ctx) {
         SharedPreferences p = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE);
@@ -37,6 +38,7 @@ final class Prefs {
         r.clock = clamp(p.getInt("clock", r.clock), 0, 2);
         r.info = p.getBoolean("info", r.info);
         r.dim = p.getBoolean("dim", r.dim);
+        r.homePhotos = p.getBoolean("homePhotos", r.homePhotos);
         if (r.durationSec < 5) r.durationSec = 20;
         return r;
     }
@@ -50,6 +52,7 @@ final class Prefs {
                 .putInt("clock", clock)
                 .putBoolean("info", info)
                 .putBoolean("dim", dim)
+                .putBoolean("homePhotos", homePhotos)
                 .apply();
     }
 

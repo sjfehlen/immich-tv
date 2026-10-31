@@ -1,6 +1,6 @@
 # Immich Screensaver for Android TV
 
-A very small (~65 KB) Android TV screensaver (`DreamService`) that shows photos from one
+A very small (~75 KB) Android TV screensaver (`DreamService`) that shows photos from one
 [Immich](https://immich.app) album full-screen, with a clock and date in the bottom-left corner.
 Built for a Chromecast with Google TV (2 GB RAM), so it is deliberately frugal:
 
@@ -17,6 +17,44 @@ Built for a Chromecast with Google TV (2 GB RAM), so it is deliberately frugal:
 
 **No server address, album or API key is in the code or the APK.** They are entered on the TV at
 runtime through a QR-code setup page and stored in app-private storage (backup disabled).
+
+## Photo home screen (launcher)
+
+`HomeActivity` is a home screen in the style of a minimal TV launcher: clock top-left, a row of
+favourite apps (hold OK or press Menu on a tile to move/remove it; **Add app** / **All apps** to add
+more), shortcuts for Play Store, TV settings, Photos (this app's settings) and All apps, and your
+Immich photos cross-fading behind everything (one every 30 s; falls back to a gradient offline).
+The slideshow runs only while the home screen is visible. Turn the photos off under
+*Home screen background* in Settings.
+
+On the Chromecast with Google TV the stock launcher (`launcherx`) and the setup app
+(`setupwraith`) must stay enabled: disabling them breaks phone casting after a reboot, and
+disabling setupwraith can delete a saved Wi-Fi network (see
+[cleanyourtv's Chromecast notes](https://github.com/Gathin23/cleanyourtv/tree/main/examples/google-chromecast-gtv-4k)).
+So Google TV remains Android's Home, and the **Immich Home button** accessibility service
+(`HomeRedirectService`) sends you here instead:
+
+- when a launcherx home screen comes to the front, it opens `HomeActivity`;
+- a short Home press while launcherx is already showing does the same (long press is left alone);
+- once per boot it opens an invisible activity so a launcherx home drawn before the service bound
+  still gets redirected;
+- it starts `HomeActivity` as a normal app (not a Home intent), so launcherx stays the home process
+  and keeps handling the remote's YouTube/Netflix buttons;
+- it stops after 3 failed starts and pauses if it ever fires in a tight loop.
+
+It only reads which window is in front and the Home key; it never reads screen content, passes every
+key through, and never disables packages or changes the Home role.
+
+Enable it (this replaces any other Home-redirect service; keep others you use, separated by `:`):
+
+```sh
+adb shell settings get secure enabled_accessibility_services   # note this to undo
+adb shell settings put secure enabled_accessibility_services \
+  com.fehlenfusion.immichscreensaver/com.fehlenfusion.immichscreensaver.HomeRedirectService
+adb shell settings put secure accessibility_enabled 1
+```
+
+Undo: put the noted value back.
 
 ## Settings (open the app on the TV)
 
@@ -35,6 +73,7 @@ from your album:
 | Clock | Time and date · Time only · Off |
 | Photo date & place | Caption from the photo's EXIF, e.g. "October 12, 2023 · Austin, Texas" |
 | Dim screen | Lower brightness while the screensaver runs |
+| Home screen background | Photos · Gradient |
 
 The screen also tells you whether the app is currently the TV's screensaver. Other touches: a soft
 gradient behind the clock for readability, and the clock shifts a few pixels with each photo to

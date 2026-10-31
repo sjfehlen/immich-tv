@@ -34,7 +34,7 @@ public final class SettingsActivity extends Activity {
     private boolean backdropRequested;
     private TextView subtitle;
     private TextView footer;
-    private TextView albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
+    private TextView homeValue, albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
     private View previewRow, albumsRow, serverRow;
     private String backdropFor;
 
@@ -107,6 +107,7 @@ public final class SettingsActivity extends Activity {
         clockValue = value(row(list, "Clock", v -> { prefs.clock = (prefs.clock + 1) % 3; save(); }));
         infoValue = value(row(list, "Photo date & place", v -> { prefs.info = !prefs.info; save(); }));
         dimValue = value(row(list, "Dim screen", v -> { prefs.dim = !prefs.dim; save(); }));
+        homeValue = value(row(list, "Home screen background", v -> { prefs.homePhotos = !prefs.homePhotos; save(); }));
 
         footer = text("", 13, 0xFF9AA3B8, dp(10), 0);
         footer.setLineSpacing(0f, 1.2f);
@@ -197,6 +198,7 @@ public final class SettingsActivity extends Activity {
         clockValue.setText(Prefs.clockLabel(prefs.clock));
         infoValue.setText(prefs.info ? "On" : "Off");
         dimValue.setText(prefs.dim ? "On" : "Off");
+        homeValue.setText(prefs.homePhotos ? "Photos" : "Gradient");
 
         Boolean active = isActiveScreensaver();
         if (Boolean.TRUE.equals(active)) {
@@ -206,9 +208,22 @@ public final class SettingsActivity extends Activity {
                     + "To set it, run once from a computer:\nadb shell settings put secure "
                     + "screensaver_components " + DREAM_COMPONENT);
         }
+        footer.append(homeButtonEnabled()
+                ? "\n✓ The Home button opens the photo home screen."
+                : "\nHome button: enable “Immich Home button” in Settings › Accessibility, or see README.");
 
         if (getCurrentFocus() == null) {
             (c.isComplete() ? previewRow : (c.serverUrl != null ? albumsRow : serverRow)).requestFocus();
+        }
+    }
+
+    private boolean homeButtonEnabled() {
+        try {
+            String v = Settings.Secure.getString(getContentResolver(),
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+            return v != null && v.contains(getPackageName() + "/" + HomeRedirectService.class.getName());
+        } catch (Exception e) {
+            return false;
         }
     }
 

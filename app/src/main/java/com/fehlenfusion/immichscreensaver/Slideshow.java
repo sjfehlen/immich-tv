@@ -119,14 +119,25 @@ final class Slideshow {
     private final Runnable loadAlbumRunnable = this::loadAlbum;
     private final Runnable prefetchRunnable = this::prefetchNext;
 
+    private final boolean embedded;
+
     Slideshow(Context ctx, Prefs prefs) {
+        this(ctx, prefs, false);
+    }
+
+    /**
+     * @param embedded true when used as the home-screen background: transparent until a photo
+     *                 arrives (so the home gradient shows when offline) and no setup hints.
+     */
+    Slideshow(Context ctx, Prefs prefs, boolean embedded) {
         this.ctx = ctx;
         this.prefs = prefs;
+        this.embedded = embedded;
         DisplayMetrics dm = ctx.getResources().getDisplayMetrics();
         burnInShiftPx = Math.round(12 * dm.density);
 
         root = new FrameLayout(ctx);
-        root.setBackgroundColor(Color.BLACK);
+        if (!embedded) root.setBackgroundColor(Color.BLACK);
         for (int i = 0; i < 2; i++) {
             Layer l = new Layer(ctx);
             l.setAlpha(0f);
@@ -392,6 +403,7 @@ final class Slideshow {
     }
 
     private void showHint(String text) {
+        if (embedded) return;
         hint.setText(text);
         hint.setVisibility(text == null ? View.GONE : View.VISIBLE);
     }
