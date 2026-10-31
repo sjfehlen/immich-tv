@@ -19,11 +19,11 @@
         android:networkSecurityConfig="@xml/network_security_config"
         tools:targetApi="24">
 
-        <!-- Setup screen: shows a QR code that opens a LAN-only, token-protected setup page.
-             Takes no input from intents. -->
+        <!-- Launcher entry: settings list. Takes no input from intents. -->
         <activity
-            android:name=".SetupActivity"
+            android:name=".SettingsActivity"
             android:exported="true"
+            android:launchMode="singleTask"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -31,6 +31,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- QR pairing screen (runs the LAN setup page while visible). Internal only. -->
+        <activity
+            android:name=".SetupActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <activity
+            android:name=".PreviewActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
 
         <service
             android:name=".PhotoDreamService"
@@ -41,6 +53,9 @@
                 <action android:name="android.service.dreams.DreamService" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+            <meta-data
+                android:name="android.service.dream"
+                android:resource="@xml/dream_info" />
         </service>
     </application>
 

@@ -1,0 +1,85 @@
+package com.fehlenfusion.immichscreensaver;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+
+/** Display settings chosen on the TV settings screen. */
+final class Prefs {
+    private static final String FILE = "display";
+
+    static final int[] DURATIONS_SEC = {10, 20, 30, 60, 120, 300};
+
+    static final int STYLE_BLUR = 0;  // fit, blurred copy of the photo behind
+    static final int STYLE_FIT = 1;   // fit, black bars
+    static final int STYLE_FILL = 2;  // crop to fill
+    static final int CLOCK_FULL = 0;
+    static final int CLOCK_TIME = 1;
+    static final int CLOCK_OFF = 2;
+
+    int durationSec = 20;
+    int style = STYLE_BLUR;
+    boolean zoom = false;
+    int clock = CLOCK_FULL;
+    boolean info = true;
+    boolean dim = false;
+
+    static Prefs load(Context ctx) {
+        SharedPreferences p = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE);
+        Prefs r = new Prefs();
+        r.durationSec = p.getInt("duration", r.durationSec);
+        r.style = clamp(p.getInt("style", r.style), 0, 2);
+        r.zoom = p.getBoolean("zoom", r.zoom);
+        r.clock = clamp(p.getInt("clock", r.clock), 0, 2);
+        r.info = p.getBoolean("info", r.info);
+        r.dim = p.getBoolean("dim", r.dim);
+        if (r.durationSec < 5) r.durationSec = 20;
+        return r;
+    }
+
+    void save(Context ctx) {
+        ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
+                .putInt("duration", durationSec)
+                .putInt("style", style)
+                .putBoolean("zoom", zoom)
+                .putInt("clock", clock)
+                .putBoolean("info", info)
+                .putBoolean("dim", dim)
+                .apply();
+    }
+
+    void nextDuration() {
+        for (int i = 0; i < DURATIONS_SEC.length; i++) {
+            if (DURATIONS_SEC[i] == durationSec) {
+                durationSec = DURATIONS_SEC[(i + 1) % DURATIONS_SEC.length];
+                return;
+            }
+        }
+        durationSec = 20;
+    }
+
+    static String durationLabel(int sec) {
+        if (sec < 60) return sec + " seconds";
+        int min = sec / 60;
+        return min == 1 ? "1 minute" : min + " minutes";
+    }
+
+    static String styleLabel(int style) {
+        switch (style) {
+            case STYLE_FIT: return "Fit, black bars";
+            case STYLE_FILL: return "Fill screen (crop)";
+            default: return "Fit, blurred background";
+        }
+    }
+
+    static String clockLabel(int clock) {
+        switch (clock) {
+            case CLOCK_TIME: return "Time only";
+            case CLOCK_OFF: return "Off";
+            default: return "Time and date";
+        }
+    }
+
+    private static int clamp(int v, int lo, int hi) {
+        return Math.max(lo, Math.min(hi, v));
+    }
+}

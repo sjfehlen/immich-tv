@@ -23,10 +23,6 @@ import java.util.Collections;
  * {@link SetupServer}. The server only runs while this screen is visible.
  */
 public final class SetupActivity extends Activity implements SetupServer.Listener {
-    private static final String ADB_HINT =
-            "adb shell settings put secure screensaver_components "
-                    + "com.fehlenfusion.immichscreensaver/.PhotoDreamService";
-
     private SetupServer server;
     private ImageView qrView;
     private TextView urlView;
@@ -71,7 +67,11 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
 
     @Override
     public void onSaved(Config config) {
-        runOnUiThread(this::refreshStatus);
+        runOnUiThread(() -> {
+            refreshStatus();
+            statusView.setText("\u2713 Saved: " + config.albumName + ". Returning to settings\u2026");
+            statusView.postDelayed(this::finish, 2500);
+        });
     }
 
     // ------------------------------------------------------------ UI
@@ -96,8 +96,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         text.addView(urlView);
         statusView = label("", 18, 0xFF86EFAC);
         text.addView(statusView);
-        text.addView(label("To make it the TV's screensaver (once, from a computer):\n" + ADB_HINT,
-                13, 0xFF9CA3AF));
+        text.addView(label("Press Back to return to settings.", 14, 0xFF9CA3AF));
 
         qrView = new ImageView(this);
         qrView.setBackgroundColor(Color.WHITE);
@@ -122,8 +121,8 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         Config c = Config.load(this);
         if (c.isComplete()) {
             statusView.setTextColor(0xFF86EFAC);
-            statusView.setText("Set up: album \"" + (c.albumName == null ? c.albumId : c.albumName)
-                    + "\" on " + c.serverUrl);
+            statusView.setText("Connected: \u201C" + (c.albumName == null ? "album" : c.albumName)
+                    + "\u201D on " + c.serverUrl + ". Scan again to change.");
         } else {
             statusView.setTextColor(0xFFFCD34D);
             statusView.setText("Not set up yet.");

@@ -9,12 +9,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -60,10 +62,12 @@ final class SetupServer {
 
     /** Starts listening; returns the bound port. */
     int start() throws IOException {
-        ServerSocket ss;
+        ServerSocket ss = new ServerSocket();
+        ss.setReuseAddress(true); // the previous session's socket may still be in TIME_WAIT
         try {
-            ss = new ServerSocket(PREFERRED_PORT);
+            ss.bind(new InetSocketAddress(PREFERRED_PORT));
         } catch (IOException e) {
+            ss.close();
             ss = new ServerSocket(0);
         }
         socket = ss;
@@ -152,7 +156,7 @@ final class SetupServer {
         } else if ("POST".equals(method) && sub.equals("/connect")) {
             respond(out, 200, handleConnect(form));
         } else if ("POST".equals(method) && sub.equals("/save")) {
-            respond(out, 200, handleSave(form));
+            respond(out, 200, handleSave(formValues(body, "album")));
         } else {
             respond(out, 404, page("Not found", "<p>Not found.</p>"));
         }
@@ -185,37 +189,48 @@ final class SetupServer {
         pendingUrl = url;
         pendingKey = key;
         pendingAlbums = albums;
+        return albumPage(null, existing.albumIds);
+    }
 
+    private String albumPage(String error, List<String> selected) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<p class=ok>Connected to ").append(esc(url)).append(".</p>");
+        if (error != null) sb.append("<p class=err>").append(esc(error)).append("</p>");
+        sb.append("<p class=ok>Connected to ").append(esc(pendingUrl)).append(".</p>");
         sb.append("<form method=post action='/s/").append(token).append("/save'>");
-        sb.append("<p>Choose the album to show:</p>");
+        sb.append("<p>Choose one or more albums to show:</p>");
+        boolean any = false;
+        for (AssetParser.Album a : pendingAlbums) if (selected.contains(a.id)) any = true;
         boolean first = true;
-        for (AssetParser.Album a : albums) {
-            boolean checked = a.id.equals(existing.albumId) || (first && existing.albumId == null);
-            sb.append("<label class=album><input type=radio name=album value='").append(a.id).append("'")
+        for (AssetParser.Album a : pendingAlbums) {
+            boolean checked = selected.contains(a.id) || (!any && first);
+            sb.append("<label class=album><input type=checkbox name=album value='").append(a.id).append("'")
                     .append(checked ? " checked" : "").append("> ")
                     .append(esc(a.name)).append(" <small>(").append(a.assetCount).append(")</small></label>");
             first = false;
         }
         sb.append("<button type=submit>Save</button></form>");
-        return page("Choose album", sb.toString());
+        return page("Choose albums", sb.toString());
     }
 
-    private String handleSave(Map<String, String> form) {
-        String albumId = form.get("album");
+    private String handleSave(List<String> albumIds) {
         if (pendingUrl == null || pendingAlbums == null) return connectPage("Please connect first.");
-        AssetParser.Album chosen = null;
-        for (AssetParser.Album a : pendingAlbums) if (a.id.equals(albumId)) chosen = a;
-        if (chosen == null) return connectPage("Please pick an album.");
+        List<String> ids = new ArrayList<>();
+        List<String> names = new ArrayList<>();
+        for (AssetParser.Album a : pendingAlbums) {
+            if (albumIds.contains(a.id)) {
+                ids.add(a.id);
+                names.add(a.name);
+            }
+        }
+        if (ids.isEmpty()) return albumPage("Please pick at least one album.", ids);
 
-        Config cfg = new Config(pendingUrl, pendingKey, chosen.id, chosen.name);
+        Config cfg = new Config(pendingUrl, pendingKey, ids, Config.summarize(names));
         cfg.save(appContext);
         pendingUrl = pendingKey = null;
         pendingAlbums = null;
         listener.onSaved(cfg);
-        return page("Done", "<p class=ok>Saved. The TV will show <b>" + esc(chosen.name)
-                + "</b> as its screensaver.</p><p>You can close this page.</p>");
+        return page("Done", "<p class=ok>Saved. The TV will show <b>" + esc(cfg.albumName)
+                + "</b>.</p><p>You can close this page. More options are in the app on the TV.</p>");
     }
 
     // ------------------------------------------------------------ pages
@@ -295,6 +310,23 @@ final class SetupServer {
             off += r;
         }
         return b;
+    }
+
+    /** All values for a repeated form field (e.g. checkboxes). */
+    static List<String> formValues(String body, String key) {
+        List<String> out = new ArrayList<>();
+        if (body == null || body.isEmpty()) return out;
+        for (String pair : body.split("&")) {
+            int eq = pair.indexOf('=');
+            if (eq < 0) continue;
+            try {
+                if (URLDecoder.decode(pair.substring(0, eq), "UTF-8").equals(key)) {
+                    out.add(URLDecoder.decode(pair.substring(eq + 1), "UTF-8"));
+                }
+            } catch (UnsupportedEncodingException | IllegalArgumentException ignored) {
+            }
+        }
+        return out;
     }
 
     static Map<String, String> parseForm(String body) {

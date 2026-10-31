@@ -3,39 +3,70 @@ package com.fehlenfusion.immichscreensaver;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-/** Runtime configuration, stored in app-private SharedPreferences (allowBackup=false). */
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/** Server connection, stored in app-private SharedPreferences (allowBackup=false). */
 final class Config {
     private static final String PREFS = "immich";
 
     final String serverUrl;
     final String apiKey;
-    final String albumId;
+    final List<String> albumIds;
+    /** Human-readable summary of the selected albums, e.g. "Family" or "Family + 2 more". */
     final String albumName;
 
-    Config(String serverUrl, String apiKey, String albumId, String albumName) {
+    Config(String serverUrl, String apiKey, List<String> albumIds, String albumName) {
         this.serverUrl = serverUrl;
         this.apiKey = apiKey;
-        this.albumId = albumId;
+        this.albumIds = Collections.unmodifiableList(new ArrayList<>(albumIds));
         this.albumName = albumName;
     }
 
     boolean isComplete() {
-        return serverUrl != null && apiKey != null && AssetParser.isUuid(albumId);
+        return serverUrl != null && apiKey != null && !albumIds.isEmpty();
     }
 
     static Config load(Context ctx) {
         SharedPreferences p = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
         return new Config(p.getString("url", null), p.getString("key", null),
-                p.getString("album", null), p.getString("albumName", null));
+                parseIds(p.getString("album", null)), p.getString("albumName", null));
     }
 
     void save(Context ctx) {
         ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
                 .putString("url", serverUrl)
                 .putString("key", apiKey)
-                .putString("album", albumId)
+                .putString("album", joinIds(albumIds))
                 .putString("albumName", albumName)
                 .commit();
+    }
+
+    static List<String> parseIds(String s) {
+        List<String> out = new ArrayList<>();
+        if (s == null) return out;
+        for (String part : s.split(",")) {
+            String id = part.trim();
+            if (AssetParser.isUuid(id) && !out.contains(id)) out.add(id);
+        }
+        return out;
+    }
+
+    static String joinIds(List<String> ids) {
+        StringBuilder sb = new StringBuilder();
+        for (String id : ids) {
+            if (sb.length() > 0) sb.append(',');
+            sb.append(id);
+        }
+        return sb.toString();
+    }
+
+    static String summarize(List<String> names) {
+        if (names.isEmpty()) return "";
+        if (names.size() == 1) return names.get(0);
+        if (names.size() == 2) return names.get(0) + " & " + names.get(1);
+        return names.get(0) + " + " + (names.size() - 1) + " more";
     }
 
     /**

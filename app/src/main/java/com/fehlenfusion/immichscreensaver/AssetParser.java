@@ -4,7 +4,12 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.Locale;
+import java.util.TimeZone;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -93,6 +98,54 @@ final class AssetParser {
                     a.optInt("assetCount", 0)));
         }
         return out;
+    }
+
+    /**
+     * Caption for a photo from GET /api/assets/{id}: "October 12, 2023 · Austin, Texas".
+     * Uses localDateTime (wall-clock time where the photo was taken). Returns null if empty.
+     */
+    static String photoInfo(String json, Locale locale) throws JSONException {
+        JSONObject a = new JSONObject(json);
+        JSONObject exif = a.optJSONObject("exifInfo");
+        List<String> parts = new ArrayList<>();
+
+        String dt = str(a, "localDateTime");
+        if (dt == null) dt = str(exif, "dateTimeOriginal");
+        if (dt != null && dt.length() >= 10) {
+            try {
+                SimpleDateFormat in = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+                in.setTimeZone(TimeZone.getTimeZone("UTC"));
+                Date d = in.parse(dt.substring(0, 10));
+                SimpleDateFormat out = new SimpleDateFormat("MMMM d, yyyy", locale);
+                out.setTimeZone(TimeZone.getTimeZone("UTC"));
+                if (d != null) parts.add(out.format(d));
+            } catch (ParseException ignored) {
+            }
+        }
+
+        String city = str(exif, "city");
+        String state = str(exif, "state");
+        String country = str(exif, "country");
+        List<String> place = new ArrayList<>();
+        if (city != null && !city.isEmpty()) place.add(city);
+        boolean us = country != null && (country.equals("United States of America")
+                || country.equals("United States") || country.equals("USA"));
+        if ((us || country == null || country.isEmpty()) && state != null && !state.isEmpty()) {
+            place.add(state);
+        } else if (country != null && !country.isEmpty()) {
+            place.add(country);
+        }
+        if (!place.isEmpty()) parts.add(join(place, ", "));
+        return parts.isEmpty() ? null : join(parts, " \u00B7 ");
+    }
+
+    private static String join(List<String> parts, String sep) {
+        StringBuilder sb = new StringBuilder();
+        for (String p : parts) {
+            if (sb.length() > 0) sb.append(sep);
+            sb.append(p);
+        }
+        return sb.toString();
     }
 
     /** String value, or null when missing / JSON null / not a string. */

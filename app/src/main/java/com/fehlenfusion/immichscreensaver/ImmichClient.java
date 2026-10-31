@@ -56,6 +56,30 @@ final class ImmichClient {
         return AssetParser.albums(new String(request("GET", "/api/albums", null, MAX_JSON_BYTES), UTF8));
     }
 
+    /** Union of displayable photo ids across all given albums (deduplicated, in order). */
+    List<String> fetchImageIds(List<String> albumIds) throws IOException, JSONException {
+        Set<String> all = new LinkedHashSet<>();
+        for (String id : albumIds) all.addAll(fetchImageIds(id));
+        return new ArrayList<>(all);
+    }
+
+    /** The album's cover asset id, or null. One small request; used for the settings backdrop. */
+    String fetchAlbumCoverId(String albumId) throws IOException, JSONException {
+        if (!AssetParser.isUuid(albumId)) return null;
+        JSONObject album = new JSONObject(
+                new String(request("GET", "/api/albums/" + albumId, null, MAX_JSON_BYTES), UTF8));
+        String id = AssetParser.str(album, "albumThumbnailAssetId");
+        return AssetParser.isUuid(id) ? id : null;
+    }
+
+    /** "October 12, 2023 · Austin, Texas" for the photo, or null. */
+    String fetchPhotoInfo(String assetId) throws IOException, JSONException {
+        if (!AssetParser.isUuid(assetId)) return null;
+        return AssetParser.photoInfo(
+                new String(request("GET", "/api/assets/" + assetId, null, MAX_JSON_BYTES), UTF8),
+                java.util.Locale.getDefault());
+    }
+
     /**
      * Ids of all displayable photos in the album.
      * 1. GET /api/albums/{id}: older servers include an "assets" array.
@@ -134,8 +158,14 @@ final class ImmichClient {
      * inSampleSize so the result is at most maxW x maxH. Returns null if undecodable.
      */
     Bitmap fetchPreview(String assetId, int maxW, int maxH, Bitmap.Config config) throws IOException {
+        return fetchImage(assetId, "preview", maxW, maxH, config);
+    }
+
+    /** size is "preview" (~1440 px) or "thumbnail" (~250 px). Never the original. */
+    Bitmap fetchImage(String assetId, String size, int maxW, int maxH, Bitmap.Config config) throws IOException {
         if (!AssetParser.isUuid(assetId)) throw new IOException("bad asset id");
-        byte[] data = request("GET", "/api/assets/" + assetId + "/thumbnail?size=preview", null, MAX_IMAGE_BYTES);
+        if (!"preview".equals(size) && !"thumbnail".equals(size)) throw new IOException("bad size");
+        byte[] data = request("GET", "/api/assets/" + assetId + "/thumbnail?size=" + size, null, MAX_IMAGE_BYTES);
 
         BitmapFactory.Options bounds = new BitmapFactory.Options();
         bounds.inJustDecodeBounds = true;
