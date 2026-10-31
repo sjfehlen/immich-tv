@@ -78,6 +78,26 @@ address on your phone, then approve the code the TV shows in the Jellyfin app or
 (**Settings › Quick Connect**; Quick Connect must be enabled in the Jellyfin dashboard). The TV
 stores only the resulting access token, which you can revoke under *Dashboard › Devices*.
 
+## Now playing (Spotify and other media)
+
+When an app is playing or paused (Spotify, YouTube, Jellyfin, ...), a **Now playing** card shows
+album art, title and artist:
+
+- **Home screen**: top-right, with previous / play-pause / next buttons (press **Up** from the apps).
+- **Screensaver**: bottom-right; the remote controls it without waking the TV:
+  **◀** previous, **▶** next, **OK** play/pause. Any other button ends the screensaver.
+
+This uses Android's media sessions, so no Spotify developer account is needed. Android only shows
+other apps' media sessions to an app with notification-listener access; `MediaListenerService`
+exists for that and ignores the notifications themselves. Enable once:
+
+```sh
+adb shell cmd notification allow_listener \
+  com.fehlenfusion.immichscreensaver/com.fehlenfusion.immichscreensaver.MediaListenerService
+```
+
+Undo: `adb shell cmd notification disallow_listener <same component>`.
+
 ## Settings (open the app on the TV)
 
 Opening **Immich Screensaver** from the apps row shows a D-pad settings list over a blurred photo

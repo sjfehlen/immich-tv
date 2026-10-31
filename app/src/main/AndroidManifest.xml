@@ -87,6 +87,18 @@
                 android:resource="@xml/home_redirect_service" />
         </service>
 
+        <!-- Only so the app may see media sessions (Now playing + play/pause/skip).
+             Notifications are ignored. Enable: adb shell cmd notification allow_listener <this component> -->
+        <service
+            android:name=".MediaListenerService"
+            android:exported="true"
+            android:label="@string/media_listener_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
         <!-- Launcher entry: settings list. Takes no input from intents. -->
         <activity
             android:name=".SettingsActivity"

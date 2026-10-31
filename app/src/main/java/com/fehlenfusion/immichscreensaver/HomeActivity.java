@@ -58,6 +58,8 @@ public final class HomeActivity extends Activity {
     private MediaRow[] rows = new MediaRow[0];
     private View lastAppFocus;
     private View[] chrome = new View[0]; // what fades out when idle
+    private NowPlaying nowPlaying;
+    private NowPlayingView npView;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean chromeHidden;
@@ -73,18 +75,22 @@ public final class HomeActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        nowPlaying = new NowPlaying(this, this::onNowPlaying);
         setContentView(buildLayout());
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        nowPlaying.start();
         startPhotos();
         loadApps();
     }
 
     @Override
     protected void onStop() {
+        nowPlaying.stop();
+        onNowPlaying(null);
         collapse(false);
         stopPhotos();
         super.onStop();
@@ -193,8 +199,24 @@ public final class HomeActivity extends Activity {
         return media != null && media.getVisibility() == View.VISIBLE;
     }
 
+    // ------------------------------------------------------------ now playing
+
+    private void onNowPlaying(NowPlaying.Info info) {
+        if (npView == null) return;
+        if (info == null) {
+            boolean hadFocus = getCurrentFocus() != null && isInside(getCurrentFocus(), npView);
+            npView.setVisibility(View.GONE);
+            npView.clear();
+            if (hadFocus) focusFirst();
+            return;
+        }
+        npView.bind(info);
+        npView.setVisibility(expanded() ? View.GONE : View.VISIBLE);
+    }
+
     private void expand() {
         final JellyfinConfig c = JellyfinConfig.load(this);
+        npView.setVisibility(View.GONE);
         media.setVisibility(View.VISIBLE);
         column.setGravity(Gravity.TOP);
         clockBox.animate().alpha(0f).setDuration(220);
@@ -228,6 +250,7 @@ public final class HomeActivity extends Activity {
         dim.animate().cancel();
         dim.setAlpha(0f);
         dim.setVisibility(View.GONE);
+        if (nowPlaying.info() != null) npView.setVisibility(View.VISIBLE);
         if (refocus && was) {
             if (lastAppFocus != null && lastAppFocus.isAttachedToWindow()) lastAppFocus.requestFocus();
             else focusFirst();
@@ -459,6 +482,14 @@ public final class HomeActivity extends Activity {
         clock.addView(time);
         clockBox = clock;
         root.addView(clock, new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
+
+        // Now playing (any media app): top-right, opposite the clock. Up from the apps reaches it.
+        npView = new NowPlayingView(this, true, nowPlaying);
+        npView.setVisibility(View.GONE);
+        FrameLayout.LayoutParams npl = new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.END);
+        npl.topMargin = Tiles.dp(this, 36);
+        npl.rightMargin = padX;
+        root.addView(npView, npl);
 
         // Everything below the clock scrolls vertically: apps, then the Jellyfin rows.
         pager = new ScrollView(this);

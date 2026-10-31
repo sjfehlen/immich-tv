@@ -215,6 +215,10 @@ public final class SettingsActivity extends Activity {
                     + "To set it, run once from a computer:\nadb shell settings put secure "
                     + "screensaver_components " + DREAM_COMPONENT);
         }
+        footer.append(NowPlaying.accessGranted(this)
+                ? "\n\u2713 Now playing controls are on."
+                : "\nNow playing controls: run once from a computer:\nadb shell cmd notification allow_listener "
+                + getPackageName() + "/" + MediaListenerService.class.getName());
         footer.append(homeButtonEnabled()
                 ? "\n✓ The Home button opens the photo home screen."
                 : "\nHome button: enable “Immich Home button” in Settings › Accessibility, or see README.");

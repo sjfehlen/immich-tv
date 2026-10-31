@@ -201,6 +201,11 @@ final class Slideshow {
         return root;
     }
 
+    /** Hides the photo date/place caption (e.g. while a Now playing card uses that corner). */
+    void setCaptionHidden(boolean hidden) {
+        infoView.setVisibility(hidden ? View.GONE : View.VISIBLE);
+    }
+
     private static void style(TextView tv, int sp) {
         tv.setTextColor(Color.WHITE);
         tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
