@@ -20,7 +20,7 @@ jobs:
       - uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: "17"
+          java-version: "21"
 
       - name: Version from tag
         run: |
@@ -32,12 +32,23 @@ jobs:
       - name: Signing key
         env:
           KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
+          for v in RELEASE_KEYSTORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD; do
+            [ -n "${!v}" ] || { echo "::error::$v secret is not set"; exit 1; }
+          done
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "::error::RELEASE_KEYSTORE_BASE64 secret is not set (see README > Publishing a release)"
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks" \
+            || { echo "::error::RELEASE_KEYSTORE_BASE64 is not valid base64 (copy the whole line)"; exit 1; }
+          # Check the secrets fit together before a long build (messages never include the values).
+          keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$RELEASE_KEYSTORE_PASSWORD" \
+            -alias "$RELEASE_KEY_ALIAS" > /dev/null 2>&1 \
+            || { echo "::error::Keystore, RELEASE_KEYSTORE_PASSWORD or RELEASE_KEY_ALIAS don't match"; exit 1; }
           echo "RELEASE_KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
       - name: Test and build
@@ -46,7 +57,13 @@ jobs:
           RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: |
-          ./gradlew --no-daemon test assembleRelease
+          set -o pipefail
+          if ! ./gradlew --no-daemon test assembleRelease 2>&1 | tee build.log; then
+            # Surface Gradle's reason as an annotation, visible on the run page without logs.
+            msg=$(grep -A6 "What went wrong" build.log | head -8 | tr '\n' ' ' | sed 's/%/%25/g')
+            echo "::error::Build failed: ${msg:-see log}"
+            exit 1
+          fi
           cp app/build/outputs/apk/release/app-release.apk immich-home.apk
 
       - uses: softprops/action-gh-release@v2
