@@ -29,7 +29,8 @@ final class NowPlayingView extends LinearLayout {
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         int pad = Tiles.dp(c, 12);
-        setPadding(pad, pad, Tiles.dp(c, controls ? 10 : 18), pad);
+        setPadding(pad, pad, Tiles.dp(c, controls ? 16 : 18), pad);
+        setClipChildren(false); // the focused button grows 15%
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(0xE01C1F26); // nearly opaque: readable on any photo
         bg.setCornerRadius(Tiles.dp(c, 18));
