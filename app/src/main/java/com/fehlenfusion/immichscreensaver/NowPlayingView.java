@@ -69,6 +69,13 @@ final class NowPlayingView extends LinearLayout {
             t.setMaxWidth(Tiles.dp(c, 150));
             text.addView(t);
         }
+        // Long song names scroll (marquee) instead of being cut off. A marquee only runs while
+        // the view is selected, so keep it selected; it doesn't take focus from the buttons.
+        title.setEllipsize(TextUtils.TruncateAt.MARQUEE);
+        title.setMarqueeRepeatLimit(-1);
+        title.setHorizontalFadingEdgeEnabled(true);
+        title.setFadingEdgeLength(Tiles.dp(c, 12));
+        title.setSelected(true);
         hint = Tiles.label(c, "", 10, 0x99FFFFFF);
         hint.setPadding(0, Tiles.dp(c, 2), 0, 0);
         hint.setVisibility(controls ? GONE : VISIBLE);
@@ -93,7 +100,7 @@ final class NowPlayingView extends LinearLayout {
     }
 
     void bind(NowPlaying.Info info) {
-        title.setText(info.title);
+        if (!TextUtils.equals(title.getText(), info.title)) title.setText(info.title); // don't restart the marquee
         artist.setText(info.artist == null ? "" : info.artist);
         artist.setVisibility(info.artist == null ? GONE : VISIBLE);
         art.setImageBitmap(info.art); // session-owned; never recycled here
