@@ -47,9 +47,17 @@ final class JellyfinParser {
         }
     }
 
+    /** /Items/Latest returns a bare JSON array instead of {"Items": [...]}. */
+    static List<Card> cardsFromArray(String json) throws JSONException {
+        return cards(new JSONArray(json));
+    }
+
     static List<Card> cards(String json) throws JSONException {
+        return cards(new JSONObject(json).optJSONArray("Items"));
+    }
+
+    private static List<Card> cards(JSONArray items) {
         List<Card> out = new ArrayList<>();
-        JSONArray items = new JSONObject(json).optJSONArray("Items");
         if (items == null) return out;
         for (int i = 0; i < items.length(); i++) {
             JSONObject it = items.optJSONObject(i);
@@ -79,10 +87,16 @@ final class JellyfinParser {
             }
         }
 
+        if ("Series".equals(type)) {
+            int n = it.optInt("ChildCount", 0);
+            if (n > 1) sub.append(n).append(" new episodes");
+        }
+
         float progress = 0f;
         JSONObject ud = it.optJSONObject("UserData");
         long runtime = it.optLong("RunTimeTicks", 0);
-        if (ud != null) {
+        // A series' PlayedPercentage is "how much of the show you've seen": not a resume bar.
+        if (ud != null && !"Series".equals(type)) {
             double pct = ud.optDouble("PlayedPercentage", 0);
             if (pct > 0 && pct < 100) progress = (float) (pct / 100.0);
             long pos = ud.optLong("PlaybackPositionTicks", 0);
@@ -93,6 +107,9 @@ final class JellyfinParser {
                 if (progress == 0f) progress = (float) pos / runtime;
             }
         }
+
+        int year = it.optInt("ProductionYear", 0);
+        if (sub.length() == 0 && "Movie".equals(type) && year > 1800) sub.append(year);
 
         // Landscape art: series/item Thumb, then a Backdrop, then the item's Primary image.
         String imgId = null, imgPath = null, imgTag = null;

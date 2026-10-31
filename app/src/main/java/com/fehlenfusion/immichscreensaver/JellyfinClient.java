@@ -92,6 +92,19 @@ final class JellyfinClient {
         return JellyfinParser.merge(JellyfinParser.cards(resume), nextUp, CARD_LIMIT);
     }
 
+    /** Recently added: "Movie", or "Episode" grouped by series (one card per show). */
+    List<JellyfinParser.Card> latest(String userId, String itemType) throws IOException, JSONException {
+        String q = "includeItemTypes=" + itemType + "&limit=" + CARD_LIMIT
+                + "&groupItems=true&enableUserData=true&enableImageTypes=Primary,Backdrop,Thumb&imageTypeLimit=1"
+                + "&fields=ProductionYear,ChildCount";
+        try {
+            return JellyfinParser.cardsFromArray(get("/Items/Latest?userId=" + enc(userId) + "&" + q));
+        } catch (ImmichClient.HttpStatusException e) {
+            if (e.code != 404) throw e; // servers before 10.9
+            return JellyfinParser.cardsFromArray(get("/Users/" + enc(userId) + "/Items/Latest?" + q));
+        }
+    }
+
     /** Card art, decoded small (RGB_565) for a card of maxW px. */
     Bitmap image(JellyfinParser.Card c, int maxW) throws IOException {
         if (c.imageItemId == null) return null;

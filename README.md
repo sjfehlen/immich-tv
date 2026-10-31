@@ -62,10 +62,15 @@ Undo: put the noted value back.
 
 ## Jellyfin: Continue watching
 
-Press **Down** from the app row to reveal a row of Jellyfin cards under the apps: what you are
-partway through (with a progress bar and minutes left) followed by next-up episodes. Selecting a
-card opens it in the Jellyfin TV app on its details page, where **Resume** is one click away.
-**Up** or **Back** hides the row again. It is fetched fresh each time you open it, its images are
+Press **Down** from the app row to open three Jellyfin rows; the apps slide up, the clock fades and
+the screen scrolls like Apple TV:
+
+- **Continue watching**: what you are partway through (progress bar, minutes left), then next-up episodes;
+- **Recently added movies** (with year);
+- **Recently added shows**: new episodes grouped per series ("3 new episodes").
+
+Selecting a card opens it in the Jellyfin TV app on its details page, where **Resume** is one click
+away. **Up** from the first row, or **Back**, folds the rows away (so does going idle). It is fetched fresh each time you open it, its images are
 freed when you close it, and it is read-only.
 
 Connect it under **Settings › Jellyfin continue watching**: scan the QR code to enter the server

@@ -82,4 +82,22 @@ public class JellyfinTest {
         assertEquals("https://jf.example.com/jellyfin", JellyfinConfig.normalizeUrl("https://jf.example.com/jellyfin/web/"));
         assertNull(JellyfinConfig.normalizeUrl("10.0.0.5:8096"));
     }
+
+    @Test
+    public void parsesLatestArrayForMoviesAndGroupedShows() throws Exception {
+        List<JellyfinParser.Card> cards = JellyfinParser.cardsFromArray("["
+                + "{\"Id\":\"" + MOVIE + "\",\"Type\":\"Movie\",\"Name\":\"Dune\",\"ProductionYear\":2021,"
+                + "\"ImageTags\":{\"Thumb\":\"th\"}},"
+                + "{\"Id\":\"" + SERIES + "\",\"Type\":\"Series\",\"Name\":\"Severance\",\"ChildCount\":3,"
+                + "\"BackdropImageTags\":[\"b1\"]},"
+                + "{\"Id\":\"" + OTHER_SERIES + "\",\"Type\":\"Series\",\"Name\":\"Andor\",\"ChildCount\":1}]");
+        assertEquals(3, cards.size());
+        assertEquals("2021", cards.get(0).subtitle);
+        assertEquals("Thumb", cards.get(0).imagePath);
+        assertEquals("Severance", cards.get(1).title);
+        assertEquals("3 new episodes", cards.get(1).subtitle);
+        assertEquals("Backdrop/0", cards.get(1).imagePath);
+        assertEquals("", cards.get(2).subtitle);
+        assertNull(cards.get(2).imagePath);
+    }
 }
