@@ -2,7 +2,6 @@ package com.fehlenfusion.immichscreensaver;
 
 import android.animation.LayoutTransition;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentCallbacks2;
 import android.content.Context;
@@ -12,7 +11,6 @@ import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -55,8 +53,10 @@ public final class HomeActivity extends Activity {
     private LinearLayout favRow;
     private HorizontalScrollView favScroll;
     private View settingsTile;
-    private Frost settingsFrost;
+    private View appsTile;
     private Frost clockFrost;
+    private FrameLayout rootView;
+    private GlassMenu menu;
     private LinearLayout media;
     private MediaRow[] rows = new MediaRow[0];
     private View lastAppFocus;
@@ -92,6 +92,7 @@ public final class HomeActivity extends Activity {
 
     @Override
     protected void onStop() {
+        if (menu != null) menu.close(null);
         nowPlaying.stop();
         onNowPlaying(null);
         collapse(false);
@@ -444,6 +445,7 @@ public final class HomeActivity extends Activity {
 
     private View buildLayout() {
         FrameLayout root = new FrameLayout(this);
+        rootView = root;
         root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 new int[]{0xFF2B3A67, 0xFF5B3A6E, 0xFF1C1B2E}));
 
@@ -580,29 +582,25 @@ public final class HomeActivity extends Activity {
         // Settings: a muted tile at the end of the app row (added in buildFavorites).
         settingsTile = Tiles.settingsTile(this);
         settingsTile.setOnClickListener(v -> showMenu());
-        settingsFrost = new Frost(settingsTile, Tiles.dp(this, Tiles.RADIUS_DP));
-        settingsFrost.setSource(photoHost);
-        if (Build.VERSION.SDK_INT >= 23) {
-            // Re-blur behind the settings tile when the row scrolls under a different part of the photo.
-            favScroll.setOnScrollChangeListener((v, x, y, ox, oy) -> settingsFrost.refreshSoon());
-            pager.setOnScrollChangeListener((v, x, y, ox, oy) -> settingsFrost.refreshSoon());
-        }
+        appsTile = Tiles.appsTile(this);
+        appsTile.setOnClickListener(v -> start(new Intent(this, AllAppsActivity.class)));
         chrome = new View[]{bottom, pager}; // the clock stays when idle
         return root;
     }
 
-    /** The settings tile's menu. */
+    /** The settings tile's menu: a frosted panel floating above the tile. */
     private void showMenu() {
-        String[] items = {"Play Store", "TV settings", "Photos & screensaver", "Home Assistant", "All apps"};
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-                .setItems(items, (d, which) -> {
-                    if (which == 0) launchPackage("com.android.vending");
-                    else if (which == 1) start(new Intent(Settings.ACTION_SETTINGS));
-                    else if (which == 2) start(new Intent(this, SettingsActivity.class));
-                    else if (which == 3) openHaSetup();
-                    else start(new Intent(this, AllAppsActivity.class));
-                })
-                .show();
+        String[] items = {"Settings", "TV settings", "Play Store"};
+        showGlassMenu(settingsTile, null, items, which -> {
+            if (which == 0) start(new Intent(this, SettingsActivity.class));
+            else if (which == 1) start(new Intent(Settings.ACTION_SETTINGS));
+            else launchPackage("com.android.vending");
+        });
+    }
+
+    private void showGlassMenu(View anchor, String title, String[] items, GlassMenu.OnPick onPick) {
+        if (menu != null && menu.isOpen()) return;
+        menu = GlassMenu.show(rootView, photoHost, anchor, title, items, onPick);
     }
 
     private static void styleClock(TextView t, int sp, int color) {
@@ -628,7 +626,6 @@ public final class HomeActivity extends Activity {
             slideshow = new Slideshow(this, p, true);
             slideshow.setOnPhotoShown(() -> {
                 npView.refreshBackdrop();
-                settingsFrost.refresh();
                 clockFrost.refresh();
             });
             photoHost.addView(slideshow.getView(), new FrameLayout.LayoutParams(-1, -1));
@@ -695,8 +692,13 @@ public final class HomeActivity extends Activity {
             favRow.addView(tile, lp);
             if (pkg.equals(focusedPkg)) restore = tile;
         }
-        if (settingsTile.getParent() != null) ((LinearLayout) settingsTile.getParent()).removeView(settingsTile);
-        favRow.addView(settingsTile, new LinearLayout.LayoutParams(w, h));
+        // All apps, then Settings: muted tiles that close the row.
+        for (View t : new View[]{appsTile, settingsTile}) {
+            if (t.getParent() != null) ((LinearLayout) t.getParent()).removeView(t);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+            if (t == appsTile) lp.rightMargin = Tiles.dp(this, 26);
+            favRow.addView(t, lp);
+        }
 
         if (restore != null) restore.requestFocus();
         else if (!hadFocus) focusFirst();
@@ -711,18 +713,17 @@ public final class HomeActivity extends Activity {
 
     private void editFavorite(final String pkg, String label) {
         String[] items = {"Move left", "Move right", "Remove from home"};
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-                .setTitle(label)
-                .setItems(items, (d, which) -> {
-                    if (which == 0) favorites = AppsRepo.move(favorites, pkg, -1);
-                    else if (which == 1) favorites = AppsRepo.move(favorites, pkg, 1);
-                    else favorites.remove(pkg);
-                    AppsRepo.saveFavorites(this, favorites);
-                    buildFavorites();
-                    View t = favRow.findViewWithTag(pkg);
-                    if (t != null) t.requestFocus();
-                })
-                .show();
+        View anchor = favRow.findViewWithTag(pkg);
+        showGlassMenu(anchor != null ? anchor : settingsTile, label, items, which -> {
+            if (which == 0) favorites = AppsRepo.move(favorites, pkg, -1);
+            else if (which == 1) favorites = AppsRepo.move(favorites, pkg, 1);
+            else favorites.remove(pkg);
+            AppsRepo.saveFavorites(this, favorites);
+            buildFavorites();
+            View t = favRow.findViewWithTag(pkg);
+            if (t != null) t.requestFocus();
+            else focusFirst();
+        });
     }
 
     /** Runs a Home Assistant script; the first time, opens the phone setup for the address and token. */

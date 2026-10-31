@@ -2,25 +2,19 @@ package com.fehlenfusion.immichscreensaver;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.GradientDrawable;
-import android.graphics.drawable.StateListDrawable;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.util.TypedValue;
-import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
 /**
- * Launcher entry: D-pad settings list over a blurred photo from the selected album.
- * Selecting a row cycles its value; changes apply the next time the screensaver starts.
+ * Settings for the whole app (screensaver, home screen, accounts), launched from the home
+ * screen's menu or the launcher: grouped frosted cards over a blurred photo from the album.
+ * Selecting a row cycles its value or opens its setup screen.
  */
 public final class SettingsActivity extends Activity {
     private static final String DREAM_COMPONENT =
@@ -29,14 +23,26 @@ public final class SettingsActivity extends Activity {
             "com.fehlenfusion.immichscreensaver/com.fehlenfusion.immichscreensaver.PhotoDreamService";
 
     private Prefs prefs;
-    private ImageView backdrop;
-    private Bitmap backdropBitmap;
-    private boolean backdropRequested;
+    private Backdrop backdrop;
     private TextView subtitle;
-    private TextView footer;
-    private TextView homeValue, idleValue, jellyfinValue, albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
-    private View previewRow, albumsRow, serverRow;
-    private String backdropFor;
+    private Glass.Row preview, order, duration, style, zoom, clock, info, dim;
+    private Glass.Row homeBg, idle;
+    private Glass.Row immich, albums, jellyfin, homeAssistant;
+    private Glass.Row screensaverStatus, nowPlayingStatus, homeButtonStatus;
+    private ScrollView content;
+    private final java.util.List<Section> sections = new java.util.ArrayList<>();
+
+    /** One block of settings and its entry in the table of contents. */
+    private static final class Section {
+        final View header;
+        final LinearLayout card;
+        Glass.Row toc;
+
+        Section(View header, LinearLayout card) {
+            this.header = header;
+            this.card = card;
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,14 +55,12 @@ public final class SettingsActivity extends Activity {
         super.onResume();
         prefs = Prefs.load(this);
         refresh();
-        loadBackdrop();
+        backdrop.load();
     }
 
     @Override
     protected void onDestroy() {
-        backdrop.setImageDrawable(null);
-        if (backdropBitmap != null) backdropBitmap.recycle();
-        backdropBitmap = null;
+        backdrop.release();
         super.onDestroy();
     }
 
@@ -64,105 +68,116 @@ public final class SettingsActivity extends Activity {
 
     private View buildLayout() {
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(0xFF0B1020);
+        backdrop = new Backdrop(this, root);
 
-        backdrop = new ImageView(this);
-        backdrop.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        backdrop.setAlpha(0f);
-        root.addView(backdrop, match());
+        // Left: title and a table of contents. Right: the settings, scrolling on their own.
+        LinearLayout columns = new LinearLayout(this);
+        columns.setOrientation(LinearLayout.HORIZONTAL);
+        root.addView(columns, match());
 
-        // Darker on the left where the list sits, lets the photo glow through on the right.
-        View shade = new View(this);
-        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{0xE6080B14, 0xB3080B14, 0x40080B14}));
-        root.addView(shade, match());
+        LinearLayout side = new LinearLayout(this);
+        side.setOrientation(LinearLayout.VERTICAL);
+        side.setPadding(dp(56), dp(40), dp(28), dp(40));
+        columns.addView(side, new LinearLayout.LayoutParams(dp(340), -1));
 
-        ScrollView scroll = new ScrollView(this);
-        scroll.setVerticalScrollBarEnabled(false);
-        scroll.setClipToPadding(false);
-        int padX = dp(56), padY = dp(26);
-        scroll.setPadding(padX, padY, padX, padY);
-        FrameLayout.LayoutParams slp = new FrameLayout.LayoutParams(
-                Math.round(getResources().getDisplayMetrics().widthPixels * 0.58f),
-                FrameLayout.LayoutParams.MATCH_PARENT);
-        root.addView(scroll, slp);
+        TextView title = Tiles.label(this, "Settings", 32, Color.WHITE);
+        title.setTypeface(Tiles.MEDIUM);
+        title.setPadding(dp(14), 0, 0, 0);
+        side.addView(title);
+        subtitle = Tiles.label(this, "", 14, 0xB3FFFFFF);
+        subtitle.setLineSpacing(0f, 1.15f);
+        subtitle.setPadding(dp(14), dp(4), 0, 0);
+        side.addView(subtitle);
+        LinearLayout toc = Glass.cardLayout(this);
+        toc.setBackground(Glass.card(this));
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(-1, -2);
+        tlp.topMargin = dp(28);
+        side.addView(toc, tlp);
+
+        content = new ScrollView(this);
+        content.setVerticalScrollBarEnabled(false);
+        content.setClipToPadding(false);
+        content.setPadding(dp(4), dp(18), dp(56), dp(40));
+        columns.addView(content, new LinearLayout.LayoutParams(0, -1, 1f));
 
         LinearLayout list = new LinearLayout(this);
         list.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(list);
+        content.addView(list);
 
-        list.addView(text("Immich Screensaver", 28, Color.WHITE, 0, 0));
-        subtitle = text("", 15, 0xFFB8C1D9, 0, dp(10));
-        list.addView(subtitle);
-
-        previewRow = row(list, "Preview screensaver", v -> openPreview());
-        ((TextView) ((LinearLayout) previewRow).getChildAt(1)).setText("▶");
-        albumsValue = value(albumsRow = row(list, "Albums", v -> openAlbums()));
-        serverValue = value(serverRow = row(list, "Server",
+        LinearLayout saver = section(list, "Screensaver");
+        immich = Glass.add(saver, Glass.row(this, "Immich",
                 v -> startActivity(new Intent(this, SetupActivity.class))));
-        orderValue = value(row(list, "Order", v -> { prefs.order = (prefs.order + 1) % 3; save(); }));
-        durationValue = value(row(list, "Photo duration", v -> { prefs.nextDuration(); save(); }));
-        styleValue = value(row(list, "Photo style", v -> { prefs.style = (prefs.style + 1) % 3; save(); }));
-        zoomValue = value(row(list, "Slow zoom", v -> { prefs.zoom = !prefs.zoom; save(); }));
-        clockValue = value(row(list, "Clock", v -> { prefs.clock = (prefs.clock + 1) % 3; save(); }));
-        infoValue = value(row(list, "Photo date & place", v -> { prefs.info = !prefs.info; save(); }));
-        dimValue = value(row(list, "Dim screen", v -> { prefs.dim = !prefs.dim; save(); }));
-        homeValue = value(row(list, "Home screen background", v -> { prefs.homePhotos = !prefs.homePhotos; save(); }));
-        idleValue = value(row(list, "Hide home apps when idle", v -> { prefs.nextIdle(); save(); }));
-        jellyfinValue = value(row(list, "Jellyfin continue watching",
-                v -> startActivity(new Intent(this, JellyfinSetupActivity.class))));
+        albums = Glass.add(saver, Glass.row(this, "Albums", v -> openAlbums()));
+        preview = Glass.add(saver, Glass.row(this, "Preview", v -> openPreview())).value("\u25B6");
+        order = Glass.add(saver, Glass.row(this, "Order", v -> { prefs.order = (prefs.order + 1) % 3; save(); }));
+        duration = Glass.add(saver, Glass.row(this, "Photo duration", v -> { prefs.nextDuration(); save(); }));
+        style = Glass.add(saver, Glass.row(this, "Photo style", v -> { prefs.style = (prefs.style + 1) % 3; save(); }));
+        zoom = Glass.add(saver, Glass.row(this, "Slow zoom", v -> { prefs.zoom = !prefs.zoom; save(); }));
+        clock = Glass.add(saver, Glass.row(this, "Clock", v -> { prefs.clock = (prefs.clock + 1) % 3; save(); }));
+        info = Glass.add(saver, Glass.row(this, "Photo date & place", v -> { prefs.info = !prefs.info; save(); }));
+        dim = Glass.add(saver, Glass.row(this, "Dim screen", v -> { prefs.dim = !prefs.dim; save(); }));
 
-        footer = text("", 13, 0xFF9AA3B8, dp(10), 0);
-        footer.setLineSpacing(0f, 1.2f);
-        list.addView(footer);
+        LinearLayout home = section(list, "Home screen");
+        homeBg = Glass.add(home, Glass.row(this, "Background", v -> { prefs.homePhotos = !prefs.homePhotos; save(); }));
+        idle = Glass.add(home, Glass.row(this, "Hide apps when idle", v -> { prefs.nextIdle(); save(); }));
+
+        LinearLayout accounts = section(list, "Accounts");
+        jellyfin = Glass.add(accounts, Glass.row(this, "Jellyfin",
+                v -> startActivity(new Intent(this, JellyfinSetupActivity.class))));
+        homeAssistant = Glass.add(accounts, Glass.row(this, "Home Assistant",
+                v -> startActivity(new Intent(this, SetupActivity.class)
+                        .putExtra(SetupActivity.EXTRA_HOME_ASSISTANT, true))));
+
+        LinearLayout system = section(list, "System");
+        screensaverStatus = Glass.add(system, Glass.row(this, "TV screensaver", null));
+        nowPlayingStatus = Glass.add(system, Glass.row(this, "Now playing controls", null));
+        homeButtonStatus = Glass.add(system, Glass.row(this, "Home button", null));
+
+        buildToc(toc, new String[]{"Screensaver", "Home screen", "Accounts", "System"});
         return root;
     }
 
-    private View row(LinearLayout parent, String title, View.OnClickListener onClick) {
-        LinearLayout r = new LinearLayout(this);
-        r.setOrientation(LinearLayout.HORIZONTAL);
-        r.setGravity(Gravity.CENTER_VERTICAL);
-        r.setFocusable(true);
-        r.setClickable(true);
-        r.setPadding(dp(18), dp(8), dp(18), dp(8));
-        r.setBackground(rowBackground());
-        r.setOnClickListener(onClick);
-
-        TextView t = text(title, 18, Color.WHITE, 0, 0);
-        r.addView(t, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
-        TextView v = text("", 17, 0xFFA9C1FF, 0, 0);
-        v.setGravity(Gravity.END);
-        r.addView(v);
-
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        lp.topMargin = dp(2);
-        parent.addView(r, lp);
-        return r;
+    /**
+     * One entry per section. Moving onto an entry scrolls the settings to that section, Right
+     * enters it, Left from any of its rows comes back; the current section's entry stays lit.
+     */
+    private void buildToc(LinearLayout toc, String[] names) {
+        for (int i = 0; i < sections.size(); i++) {
+            final Section sec = sections.get(i);
+            View first = sec.card.getChildAt(0);
+            first.setId(View.generateViewId());
+            sec.toc = Glass.add(toc, Glass.row(this, names[i], v -> sec.card.getChildAt(0).requestFocus()));
+            sec.toc.title.setTextColor(Glass.states(0xFFFFFFFF, 0xBFFFFFFF));
+            sec.toc.view.setId(View.generateViewId());
+            sec.toc.view.setNextFocusRightId(first.getId());
+            sec.toc.view.setOnFocusChangeListener((v, has) -> {
+                if (!has) return;
+                markSection(sec);
+                content.smoothScrollTo(0, sec.header.getTop());
+            });
+            for (int r = 0; r < sec.card.getChildCount(); r++) {
+                View row = sec.card.getChildAt(r);
+                row.setNextFocusLeftId(sec.toc.view.getId());
+                row.setOnFocusChangeListener((v, has) -> {
+                    if (has) markSection(sec);
+                });
+            }
+        }
     }
 
-    private static TextView value(View row) {
-        return (TextView) ((LinearLayout) row).getChildAt(1);
+    private void markSection(Section current) {
+        for (Section s : sections) s.toc.view.setSelected(s == current);
     }
 
-    private StateListDrawable rowBackground() {
-        GradientDrawable focused = new GradientDrawable();
-        focused.setColor(0x33FFFFFF);
-        focused.setStroke(dp(1), 0x55FFFFFF);
-        focused.setCornerRadius(dp(12));
-        StateListDrawable s = new StateListDrawable();
-        s.addState(new int[]{android.R.attr.state_focused}, focused);
-        s.addState(new int[]{}, new ColorDrawable(Color.TRANSPARENT));
-        return s;
-    }
-
-    private TextView text(String s, int sp, int color, int top, int bottom) {
-        TextView tv = new TextView(this);
-        tv.setText(s);
-        tv.setTextColor(color);
-        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, sp);
-        tv.setPadding(0, top, 0, bottom);
-        return tv;
+    /** A heading and a frosted card; returns the card to add rows to. */
+    private LinearLayout section(LinearLayout list, String name) {
+        TextView header = Glass.header(this, name);
+        list.addView(header);
+        LinearLayout card = Glass.cardLayout(this);
+        card.setBackground(Glass.card(this));
+        list.addView(card, new LinearLayout.LayoutParams(-1, -2));
+        sections.add(new Section(header, card));
+        return card;
     }
 
     private FrameLayout.LayoutParams match() {
@@ -171,7 +186,7 @@ public final class SettingsActivity extends Activity {
     }
 
     private int dp(int v) {
-        return Math.round(v * getResources().getDisplayMetrics().density);
+        return Tiles.dp(this, v);
     }
 
     // ------------------------------------------------------------ state
@@ -184,48 +199,55 @@ public final class SettingsActivity extends Activity {
     private void refresh() {
         Config c = Config.load(this);
         if (c.isComplete()) {
-            subtitle.setText("Showing " + (c.albumName == null ? "your album" : "“" + c.albumName + "”")
-                    + " from " + c.serverUrl);
-            albumsValue.setText(c.albumName != null ? c.albumName
+            subtitle.setText("Showing " + (c.albumName == null ? "your albums" : "\u201C" + c.albumName + "\u201D")
+                    + " from " + host(c.serverUrl));
+            albums.value(c.albumName != null ? c.albumName
                     : (c.albumIds.size() == 1 ? "1 album" : c.albumIds.size() + " albums"));
-            serverValue.setText(c.serverUrl.replaceFirst("^https?://", ""));
+            immich.value(host(c.serverUrl));
         } else {
-            subtitle.setText("Not connected yet. Select “Server” to scan a QR code with your phone.");
-            albumsValue.setText("");
-            serverValue.setText("Set up");
+            subtitle.setText("Not connected yet. Select Immich to pair with your phone.");
+            albums.value(c.serverUrl != null ? "Choose" : "");
+            immich.value("Set up");
         }
-        orderValue.setText(Prefs.orderLabel(prefs.order));
-        durationValue.setText(Prefs.durationLabel(prefs.durationSec));
-        styleValue.setText(Prefs.styleLabel(prefs.style));
-        zoomValue.setText(prefs.zoom ? "On" : "Off");
-        clockValue.setText(Prefs.clockLabel(prefs.clock));
-        infoValue.setText(prefs.info ? "On" : "Off");
-        dimValue.setText(prefs.dim ? "On" : "Off");
-        homeValue.setText(prefs.homePhotos ? "Photos" : "Gradient");
-        idleValue.setText(Prefs.idleLabel(prefs.homeIdleSec));
+        order.value(Prefs.orderLabel(prefs.order));
+        duration.value(Prefs.durationLabel(prefs.durationSec));
+        style.value(Prefs.styleLabel(prefs.style));
+        zoom.value(onOff(prefs.zoom));
+        clock.value(Prefs.clockLabel(prefs.clock));
+        info.value(onOff(prefs.info));
+        dim.value(onOff(prefs.dim));
+        homeBg.value(prefs.homePhotos ? "Photos" : "Gradient");
+        idle.value(Prefs.idleLabel(prefs.homeIdleSec));
         JellyfinConfig jf = JellyfinConfig.load(this);
-        jellyfinValue.setText(jf.isConnected()
+        jellyfin.value(jf.isConnected()
                 ? (jf.userName == null || jf.userName.isEmpty() ? "Connected" : jf.userName) : "Set up");
+        HaConfig ha = HaConfig.load(this);
+        homeAssistant.value(ha.isConnected() ? host(ha.url) : "Set up");
 
         Boolean active = isActiveScreensaver();
-        if (Boolean.TRUE.equals(active)) {
-            footer.setText("✓ This is the TV's screensaver. Changes apply the next time it starts.");
-        } else {
-            footer.setText((active == null ? "" : "Not the TV's screensaver yet. ")
-                    + "To set it, run once from a computer:\nadb shell settings put secure "
-                    + "screensaver_components " + DREAM_COMPONENT);
-        }
-        footer.append(NowPlaying.accessGranted(this)
-                ? "\n\u2713 Now playing controls are on."
-                : "\nNow playing controls: run once from a computer:\nadb shell cmd notification allow_listener "
+        screensaverStatus.value(Boolean.TRUE.equals(active) ? "On" : active == null ? "Unknown" : "Off")
+                .detail(Boolean.TRUE.equals(active) ? "Changes apply the next time it starts."
+                        : "Run once from a computer: adb shell settings put secure screensaver_components "
+                        + DREAM_COMPONENT);
+        boolean np = NowPlaying.accessGranted(this);
+        nowPlayingStatus.value(onOff(np)).detail(np ? null
+                : "Run once from a computer: adb shell cmd notification allow_listener "
                 + getPackageName() + "/" + MediaListenerService.class.getName());
-        footer.append(homeButtonEnabled()
-                ? "\n✓ The Home button opens the photo home screen."
-                : "\nHome button: enable “Immich Home button” in Settings › Accessibility, or see README.");
+        boolean hb = homeButtonEnabled();
+        homeButtonStatus.value(hb ? "Opens this home screen" : "Off").detail(hb ? null
+                : "Turn on \u201CImmich Home button\u201D in TV settings \u203A Accessibility.");
 
         if (getCurrentFocus() == null) {
-            (c.isComplete() ? previewRow : (c.serverUrl != null ? albumsRow : serverRow)).requestFocus();
+            (c.isComplete() ? preview : c.serverUrl != null ? albums : immich).view.requestFocus();
         }
+    }
+
+    private static String onOff(boolean on) {
+        return on ? "On" : "Off";
+    }
+
+    private static String host(String url) {
+        return url == null ? "" : url.replaceFirst("^https?://", "").replaceFirst("/+$", "");
     }
 
     private boolean homeButtonEnabled() {
@@ -264,43 +286,5 @@ public final class SettingsActivity extends Activity {
         } else {
             startActivity(new Intent(this, PreviewActivity.class));
         }
-    }
-
-    /** Loads the album cover at thumbnail size and blurs it into a tiny backdrop. */
-    private void loadBackdrop() {
-        final Config c = Config.load(this);
-        if (!c.isComplete()) return;
-        String key = c.serverUrl + "|" + c.albumIds.get(0);
-        if (backdropRequested && key.equals(backdropFor)) return; // reload only if the album changed
-        backdropRequested = true;
-        backdropFor = key;
-        new Thread(() -> {
-            Bitmap blurred = null;
-            try {
-                ImmichClient client = new ImmichClient(c.serverUrl, c.apiKey);
-                String cover = client.fetchAlbumCoverId(c.albumIds.get(0));
-                if (cover != null) {
-                    Bitmap small = client.fetchImage(cover, "thumbnail", 256, 256, Bitmap.Config.RGB_565);
-                    if (small != null) {
-                        blurred = Blur.tiny(small, 48, 3);
-                        small.recycle();
-                    }
-                }
-            } catch (Throwable ignored) {
-                // Backdrop is decoration only.
-            }
-            final Bitmap result = blurred;
-            runOnUiThread(() -> {
-                if (result == null) return;
-                if (isFinishing() || isDestroyed()) {
-                    result.recycle();
-                    return;
-                }
-                backdrop.setImageBitmap(result);
-                if (backdropBitmap != null) backdropBitmap.recycle();
-                backdropBitmap = result;
-                backdrop.animate().alpha(1f).setDuration(800);
-            });
-        }, "immich-backdrop").start();
     }
 }

@@ -88,16 +88,25 @@ final class Tiles {
 
     /**
      * Settings as an ordinary tile at the end of the row, muted like tvOS's Settings icon:
-     * the same frosted material as the now playing card (the caller attaches a {@link Frost})
-     * with a dim gear, so it does not compete with the apps.
+     * a plain grey card with a light gear, so it does not compete with the apps.
      */
     static View settingsTile(Context c) {
+        return utilityTile(c, R.drawable.ic_settings, "Settings and more");
+    }
+
+    /** All apps: the same muted card as Settings, with a grid glyph. */
+    static View appsTile(Context c) {
+        return utilityTile(c, R.drawable.ic_apps, "All apps");
+    }
+
+    private static View utilityTile(Context c, int iconRes, String description) {
         FrameLayout tile = baseTile(c);
-        tile.setContentDescription("Settings and more");
-        ImageView gear = new ImageView(c);
-        gear.setImageResource(R.drawable.ic_settings);
-        gear.setAlpha(0.8f);
-        tile.addView(gear, new FrameLayout.LayoutParams(dp(c, 26), dp(c, 26), Gravity.CENTER));
+        tile.setContentDescription(description);
+        tile.setBackgroundColor(0xFF45484F);
+        ImageView icon = new ImageView(c);
+        icon.setImageResource(iconRes);
+        icon.setAlpha(0.85f);
+        tile.addView(icon, new FrameLayout.LayoutParams(dp(c, 26), dp(c, 26), Gravity.CENTER));
         return tile;
     }
 

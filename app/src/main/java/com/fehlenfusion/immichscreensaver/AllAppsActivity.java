@@ -1,11 +1,13 @@
 package com.fehlenfusion.immichscreensaver;
 
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
 import android.graphics.Color;
 import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.text.TextUtils;
+import android.util.TypedValue;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
@@ -16,46 +18,64 @@ import android.widget.Toast;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Grid of every launchable app. OK opens; long-press (or Menu) adds/removes it from the home row. */
+/**
+ * Grid of every launchable app over the blurred album backdrop, in the home screen's style.
+ * OK opens; hold OK (or Menu) for a glass menu that adds it to or removes it from Home.
+ */
 public final class AllAppsActivity extends Activity {
-    private static final int COLUMNS = 5;
+    private static final int GAP_DP = 28;
+    private static final int SIDE_DP = 56;
 
+    private FrameLayout root;
+    private Backdrop backdrop;
     private LinearLayout grid;
-    private TextView hint;
+    private GlassMenu menu;
     private List<AppsRepo.App> apps = new ArrayList<>();
     private List<String> favorites = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
-                new int[]{0xFF0B1020, 0xFF1A1630}));
-        int pad = Tiles.dp(this, 48);
-        root.setPadding(pad, Tiles.dp(this, 28), pad, 0);
+        root = new FrameLayout(this);
+        backdrop = new Backdrop(this, root);
 
-        root.addView(Tiles.label(this, "All apps", 28, Color.WHITE));
-        hint = Tiles.label(this, "OK opens an app. Hold OK (or press Menu) to add it to or remove it from Home.",
-                15, 0xFFB8C1D9);
-        hint.setPadding(0, 0, 0, Tiles.dp(this, 12));
-        root.addView(hint);
+        LinearLayout page = new LinearLayout(this);
+        page.setOrientation(LinearLayout.VERTICAL);
+        page.setPadding(Tiles.dp(this, SIDE_DP), Tiles.dp(this, 40), Tiles.dp(this, SIDE_DP), 0);
+        root.addView(page, new FrameLayout.LayoutParams(-1, -1));
+
+        TextView title = Tiles.label(this, "All apps", 32, Color.WHITE);
+        title.setTypeface(Tiles.MEDIUM);
+        page.addView(title);
+        TextView hint = Tiles.label(this, "Apps marked \u2713 are on Home. Hold OK to add or remove one.",
+                14, 0xB3FFFFFF);
+        hint.setPadding(0, Tiles.dp(this, 4), 0, 0);
+        page.addView(hint);
 
         ScrollView scroll = new ScrollView(this);
         scroll.setVerticalScrollBarEnabled(false);
         scroll.setClipToPadding(false);
-        scroll.setPadding(Tiles.dp(this, 8), Tiles.dp(this, 8), Tiles.dp(this, 8), Tiles.dp(this, 32));
+        scroll.setClipChildren(false);
+        // Room for the focused tile's zoom and shadow on every side.
+        scroll.setPadding(Tiles.dp(this, 12), Tiles.dp(this, 28), Tiles.dp(this, 12), Tiles.dp(this, 40));
         grid = new LinearLayout(this);
         grid.setOrientation(LinearLayout.VERTICAL);
         grid.setClipChildren(false);
         scroll.addView(grid);
-        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        page.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
         setContentView(root);
+
+        // The focused app's name brightens, like the tile under it.
+        grid.getViewTreeObserver().addOnGlobalFocusChangeListener((was, now) -> {
+            lightLabel(was, false);
+            lightLabel(now, true);
+        });
     }
 
     @Override
     protected void onStart() {
         super.onStart();
+        backdrop.load();
         new Thread(() -> {
             final List<AppsRepo.App> loaded = AppsRepo.loadApps(getApplicationContext());
             runOnUiThread(() -> {
@@ -67,61 +87,107 @@ public final class AllAppsActivity extends Activity {
         }, "all-apps").start();
     }
 
+    @Override
+    protected void onStop() {
+        if (menu != null) menu.close(null);
+        super.onStop();
+    }
+
+    @Override
+    protected void onDestroy() {
+        backdrop.release();
+        super.onDestroy();
+    }
+
     private void build() {
+        String focusedPkg = getCurrentFocus() != null && getCurrentFocus().getTag() instanceof String
+                ? (String) getCurrentFocus().getTag() : null;
         grid.removeAllViews();
         int w = Tiles.dp(this, Tiles.BANNER_W_DP), h = Tiles.dp(this, Tiles.BANNER_H_DP);
+        int gap = Tiles.dp(this, GAP_DP);
+        int avail = getResources().getDisplayMetrics().widthPixels - 2 * Tiles.dp(this, SIDE_DP + 12);
+        int columns = Math.max(1, (avail + gap) / (w + gap));
         LinearLayout row = null;
+        View restore = null;
         for (int i = 0; i < apps.size(); i++) {
-            if (i % COLUMNS == 0) {
+            if (i % columns == 0) {
                 row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setClipChildren(false);
                 LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(-2, -2);
-                rl.bottomMargin = Tiles.dp(this, 34);
+                rl.bottomMargin = Tiles.dp(this, 26);
                 grid.addView(row, rl);
             }
             final AppsRepo.App a = apps.get(i);
             LinearLayout cell = new LinearLayout(this);
             cell.setOrientation(LinearLayout.VERTICAL);
             cell.setClipChildren(false);
-            View tile = Tiles.appTile(this, a);
+            FrameLayout tile = (FrameLayout) Tiles.appTile(this, a);
             tile.setTag(a.pkg);
             tile.setOnClickListener(v -> open(a));
             tile.setOnLongClickListener(v -> {
-                toggleFavorite(a);
+                toggleFavorite(a, v);
                 return true;
             });
+            if (favorites.contains(a.pkg)) tile.addView(homeBadge(), badgeParams());
             cell.addView(tile, new LinearLayout.LayoutParams(w, h));
-            TextView label = Tiles.label(this, (favorites.contains(a.pkg) ? "★ " : "") + a.label, 14, 0xFFE5E7EB);
+            TextView label = Tiles.label(this, a.label, 14, 0xB3FFFFFF);
             label.setSingleLine(true);
-            label.setMaxWidth(w);
-            label.setPadding(0, Tiles.dp(this, 6), 0, 0);
-            cell.addView(label);
+            label.setEllipsize(TextUtils.TruncateAt.END);
+            label.setPadding(Tiles.dp(this, 2), Tiles.dp(this, 10), 0, 0);
+            cell.addView(label, new LinearLayout.LayoutParams(w, -2));
             LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(w, -2);
-            cl.rightMargin = Tiles.dp(this, 28);
+            cl.rightMargin = gap;
             row.addView(cell, cl);
+            if (a.pkg.equals(focusedPkg)) restore = tile;
         }
-        if (grid.getChildCount() > 0 && getCurrentFocus() == null) {
+        if (restore != null) restore.requestFocus();
+        else if (grid.getChildCount() > 0 && getCurrentFocus() == null) {
             ((LinearLayout) ((LinearLayout) grid.getChildAt(0)).getChildAt(0)).getChildAt(0).requestFocus();
         }
     }
 
-    private void toggleFavorite(final AppsRepo.App a) {
+    /** Small frosted check in the tile's corner: this app is on the Home row. */
+    private View homeBadge() {
+        TextView b = new TextView(this);
+        b.setText("\u2713");
+        b.setTextColor(Color.WHITE);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 11);
+        b.setTypeface(Tiles.MEDIUM);
+        b.setGravity(Gravity.CENTER);
+        b.setIncludeFontPadding(false);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.OVAL);
+        bg.setColor(0x99101318);
+        b.setBackground(bg);
+        return b;
+    }
+
+    private FrameLayout.LayoutParams badgeParams() {
+        int d = Tiles.dp(this, 18), m = Tiles.dp(this, 5);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(d, d, Gravity.TOP | Gravity.END);
+        lp.topMargin = m;
+        lp.rightMargin = m;
+        return lp;
+    }
+
+    private static void lightLabel(View tile, boolean lit) {
+        if (tile == null || !(tile.getParent() instanceof LinearLayout)) return;
+        LinearLayout cell = (LinearLayout) tile.getParent();
+        if (cell.getChildCount() < 2 || !(cell.getChildAt(1) instanceof TextView)) return;
+        ((TextView) cell.getChildAt(1)).setTextColor(lit ? Color.WHITE : 0xB3FFFFFF);
+    }
+
+    private void toggleFavorite(final AppsRepo.App a, View tile) {
+        if (menu != null && menu.isOpen()) return;
         final boolean isFav = favorites.contains(a.pkg);
-        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-                .setTitle(a.label)
-                .setItems(new String[]{isFav ? "Remove from Home" : "Add to Home"}, (d, which) -> {
+        menu = GlassMenu.show(root, backdrop.image, tile, a.label,
+                new String[]{isFav ? "Remove from Home" : "Add to Home"}, which -> {
                     if (isFav) favorites.remove(a.pkg);
                     else favorites.add(a.pkg);
                     AppsRepo.saveFavorites(this, favorites);
-                    Toast.makeText(this, isFav ? "Removed from Home" : "Added to Home", Toast.LENGTH_SHORT).show();
-                    View focused = grid.findViewWithTag(a.pkg);
                     build();
-                    View again = grid.findViewWithTag(a.pkg);
-                    if (again != null) again.requestFocus();
-                    else if (focused != null) focused.requestFocus();
-                })
-                .show();
+                });
     }
 
     private void open(AppsRepo.App a) {
@@ -145,7 +211,7 @@ public final class AllAppsActivity extends Activity {
             if (f != null && f.getTag() instanceof String) {
                 for (AppsRepo.App a : apps) {
                     if (a.pkg.equals(f.getTag())) {
-                        toggleFavorite(a);
+                        toggleFavorite(a, f);
                         return true;
                     }
                 }
