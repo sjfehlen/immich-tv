@@ -40,6 +40,14 @@ public final class HomeActivity extends Activity {
     private TextView focusLabel;
     private View firstShortcut;
     private View[] chrome = new View[0]; // what fades out when idle
+    // Jellyfin "Continue watching": hidden row under the apps, revealed with Down.
+    private HorizontalScrollView cwScroll;
+    private LinearLayout cwRow;
+    private final List<android.graphics.Bitmap> cwBitmaps = new ArrayList<>();
+    private int cwGen;
+    private View lastAppFocus;
+    private static final int CARD_W_DP = 176;
+    private static final int CARD_H_DP = 99;
     private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
     private boolean chromeHidden;
     private int swallowKeyUp = -1;
@@ -66,6 +74,7 @@ public final class HomeActivity extends Activity {
 
     @Override
     protected void onStop() {
+        hideContinue(false);
         stopPhotos();
         super.onStop();
     }
@@ -101,8 +110,149 @@ public final class HomeActivity extends Activity {
             return true;
         }
         if (!volume) scheduleHide();
-        if (event.getAction() == KeyEvent.ACTION_DOWN) Tiles.lastNavKey = code;
+        if (event.getAction() == KeyEvent.ACTION_DOWN) {
+            Tiles.lastNavKey = code;
+            View f = getCurrentFocus();
+            if (code == KeyEvent.KEYCODE_DPAD_DOWN && f != null && isInside(f, favRow)
+                    && cwScroll.getVisibility() != View.VISIBLE) {
+                lastAppFocus = f;
+                showContinue();
+                return true;
+            }
+            if ((code == KeyEvent.KEYCODE_DPAD_UP || code == KeyEvent.KEYCODE_BACK)
+                    && f != null && isInside(f, cwRow)) {
+                hideContinue(true);
+                return true;
+            }
+        }
+        if (event.getAction() == KeyEvent.ACTION_UP && code == KeyEvent.KEYCODE_BACK
+                && cwScroll.getVisibility() == View.VISIBLE) {
+            return true;
+        }
         return super.dispatchKeyEvent(event);
+    }
+
+    private static boolean isInside(View v, View parent) {
+        for (View p = v; p != null; p = p.getParent() instanceof View ? (View) p.getParent() : null) {
+            if (p == parent) return true;
+        }
+        return false;
+    }
+
+    // ------------------------------------------------------------ Jellyfin continue watching
+
+    private void showContinue() {
+        cwScroll.setVisibility(View.VISIBLE);
+        clearContinue();
+        final JellyfinConfig c = JellyfinConfig.load(this);
+        if (!c.isConnected()) {
+            infoCard("Connect Jellyfin", "Show what you're watching here",
+                    v -> start(new Intent(this, JellyfinSetupActivity.class))).requestFocus();
+            return;
+        }
+        infoCard("Continue watching", "Loading\u2026", null).requestFocus();
+        final int gen = ++cwGen;
+        final int px = Tiles.dp(this, CARD_W_DP);
+        new Thread(() -> {
+            JellyfinClient client = JellyfinClient.of(c);
+            List<JellyfinParser.Card> cards = null;
+            String error = null;
+            try {
+                cards = client.continueWatching(c.userId);
+            } catch (ImmichClient.HttpStatusException e) {
+                error = e.code == 401 ? "Signed out \u2013 reconnect in Settings \u203A Jellyfin" : "HTTP " + e.code;
+            } catch (Exception e) {
+                error = "Can't reach Jellyfin";
+            }
+            final List<JellyfinParser.Card> list = cards;
+            final String err = error;
+            runOnUiThread(() -> {
+                if (gen != cwGen || isDestroyed()) return;
+                showCards(list, err);
+            });
+            if (list == null) return;
+            for (int i = 0; i < list.size() && gen == cwGen; i++) {
+                android.graphics.Bitmap bmp = null;
+                try {
+                    bmp = client.image(list.get(i), px);
+                } catch (Throwable ignored) {
+                    // a card without art still works
+                }
+                final android.graphics.Bitmap b = bmp;
+                final int index = i;
+                runOnUiThread(() -> {
+                    if (b == null) return;
+                    if (gen != cwGen || isDestroyed() || index >= cwRow.getChildCount()) {
+                        b.recycle();
+                        return;
+                    }
+                    View img = cwRow.getChildAt(index).findViewWithTag("img");
+                    if (img instanceof android.widget.ImageView) {
+                        ((android.widget.ImageView) img).setImageBitmap(b);
+                        cwBitmaps.add(b);
+                    } else {
+                        b.recycle();
+                    }
+                });
+            }
+        }, "jellyfin-cw").start();
+    }
+
+    private void showCards(List<JellyfinParser.Card> cards, String error) {
+        clearContinue();
+        if (cards == null) {
+            infoCard("Jellyfin unavailable", error, v -> showContinue()).requestFocus();
+            return;
+        }
+        if (cards.isEmpty()) {
+            infoCard("Nothing in progress", "Start something in Jellyfin",
+                    v -> launchPackage("org.jellyfin.androidtv")).requestFocus();
+            return;
+        }
+        int w = Tiles.dp(this, CARD_W_DP), h = Tiles.dp(this, CARD_H_DP);
+        for (final JellyfinParser.Card card : cards) {
+            View v = Tiles.mediaCard(this, card.title, card.subtitle, card.progress);
+            v.setOnClickListener(x -> openInJellyfin(card.id));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+            lp.rightMargin = Tiles.dp(this, 30);
+            cwRow.addView(v, lp);
+        }
+        cwRow.getChildAt(0).requestFocus();
+    }
+
+    private View infoCard(String title, String subtitle, View.OnClickListener l) {
+        View v = Tiles.mediaCard(this, title, subtitle, 0f);
+        if (l != null) v.setOnClickListener(l);
+        cwRow.addView(v, new LinearLayout.LayoutParams(Tiles.dp(this, CARD_W_DP), Tiles.dp(this, CARD_H_DP)));
+        return v;
+    }
+
+    private void openInJellyfin(String itemId) {
+        // Jellyfin's StartupActivity opens the item's details page for VIEW + item id.
+        start(new Intent(Intent.ACTION_VIEW, android.net.Uri.parse(itemId))
+                .setClassName("org.jellyfin.androidtv", "org.jellyfin.androidtv.ui.startup.StartupActivity"));
+    }
+
+    private void hideContinue(boolean refocus) {
+        cwGen++;
+        if (cwScroll == null) return;
+        boolean wasVisible = cwScroll.getVisibility() == View.VISIBLE;
+        cwScroll.setVisibility(View.GONE);
+        clearContinue();
+        if (refocus && wasVisible) {
+            if (lastAppFocus != null && lastAppFocus.isAttachedToWindow()) lastAppFocus.requestFocus();
+            else focusFirst();
+        }
+    }
+
+    private void clearContinue() {
+        for (int i = 0; i < cwRow.getChildCount(); i++) {
+            View img = cwRow.getChildAt(i).findViewWithTag("img");
+            if (img instanceof android.widget.ImageView) ((android.widget.ImageView) img).setImageDrawable(null);
+        }
+        cwRow.removeAllViews();
+        for (android.graphics.Bitmap b : cwBitmaps) b.recycle();
+        cwBitmaps.clear();
     }
 
     private void scheduleHide() {
@@ -210,11 +360,30 @@ public final class HomeActivity extends Activity {
         fsl.rightMargin = -edge;
         content.addView(favScroll, fsl);
 
+        cwScroll = new HorizontalScrollView(this);
+        cwScroll.setHorizontalScrollBarEnabled(false);
+        cwScroll.setClipChildren(false);
+        cwScroll.setClipToPadding(false);
+        cwScroll.setPadding(edge, Tiles.dp(this, 16), edge, Tiles.dp(this, 10));
+        cwRow = new LinearLayout(this);
+        cwRow.setOrientation(LinearLayout.HORIZONTAL);
+        cwRow.setClipChildren(false);
+        cwScroll.addView(cwRow);
+        cwScroll.setVisibility(View.GONE);
+        LinearLayout.LayoutParams cwl = new LinearLayout.LayoutParams(-1, -2);
+        cwl.leftMargin = -edge;
+        cwl.rightMargin = -edge;
+        content.addView(cwScroll, cwl);
+        // Apps glide up when the row below them appears.
+        android.animation.LayoutTransition lt = new android.animation.LayoutTransition();
+        lt.setDuration(220);
+        content.setLayoutTransition(lt);
+
         // Small settings button: the last item in the app row (added in buildFavorites).
         firstShortcut = Tiles.settingsTile(this);
         firstShortcut.setContentDescription("Settings and more");
         firstShortcut.setOnClickListener(v -> showMenu());
-        chrome = new View[]{bottomScrim, favScroll};
+        chrome = new View[]{bottomScrim, favScroll, cwScroll};
         return root;
     }
 

@@ -60,6 +60,19 @@ adb shell settings put secure accessibility_enabled 1
 
 Undo: put the noted value back.
 
+## Jellyfin: Continue watching
+
+Press **Down** from the app row to reveal a row of Jellyfin cards under the apps: what you are
+partway through (with a progress bar and minutes left) followed by next-up episodes. Selecting a
+card opens it in the Jellyfin TV app on its details page, where **Resume** is one click away.
+**Up** or **Back** hides the row again. It is fetched fresh each time you open it, its images are
+freed when you close it, and it is read-only.
+
+Connect it under **Settings › Jellyfin continue watching**: scan the QR code to enter the server
+address on your phone, then approve the code the TV shows in the Jellyfin app or web
+(**Settings › Quick Connect**; Quick Connect must be enabled in the Jellyfin dashboard). The TV
+stores only the resulting access token, which you can revoke under *Dashboard › Devices*.
+
 ## Settings (open the app on the TV)
 
 Opening **Immich Screensaver** from the apps row shows a D-pad settings list over a blurred photo
@@ -79,6 +92,7 @@ from your album:
 | Dim screen | Lower brightness while the screensaver runs |
 | Home screen background | Photos · Gradient |
 | Hide home apps when idle | After 15 s · 30 s · 1 min · 2 min · Never |
+| Jellyfin continue watching | Connect with Quick Connect, reconnect or disconnect |
 
 The screen also tells you whether the app is currently the TV's screensaver. Other touches: a soft
 gradient behind the clock for readability, and the clock shifts a few pixels with each photo to

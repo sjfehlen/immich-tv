@@ -85,6 +85,55 @@ final class Tiles {
         return tile;
     }
 
+    /**
+     * Landscape media card (Jellyfin continue watching): artwork (ImageView tagged "img"),
+     * a bottom gradient with title and subtitle, and a thin progress bar.
+     */
+    static View mediaCard(Context c, String title, String subtitle, float progress) {
+        FrameLayout card = baseTile(c);
+        card.setContentDescription(title);
+        GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0xFF2A3042, 0xFF161A24});
+        card.setBackground(bg);
+        ImageView img = new ImageView(c);
+        img.setTag("img");
+        img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        card.addView(img, new FrameLayout.LayoutParams(-1, -1));
+
+        View shade = new View(c);
+        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
+                new int[]{0xD9000000, 0x66000000, 0x00000000}));
+        card.addView(shade, new FrameLayout.LayoutParams(-1, dp(c, 58), Gravity.BOTTOM));
+
+        LinearLayout text = new LinearLayout(c);
+        text.setOrientation(LinearLayout.VERTICAL);
+        text.setPadding(dp(c, 10), 0, dp(c, 10), dp(c, progress > 0 ? 10 : 7));
+        TextView t = label(c, title, 13, Color.WHITE);
+        t.setSingleLine(true);
+        t.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        text.addView(t);
+        if (subtitle != null && !subtitle.isEmpty()) {
+            TextView st = label(c, subtitle, 11, 0xD9FFFFFF);
+            st.setSingleLine(true);
+            st.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            text.addView(st);
+        }
+        card.addView(text, new FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM));
+
+        if (progress > 0f) {
+            LinearLayout bar = new LinearLayout(c);
+            bar.setOrientation(LinearLayout.HORIZONTAL);
+            bar.setBackgroundColor(0x4DFFFFFF);
+            View fill = new View(c);
+            fill.setBackgroundColor(Color.WHITE);
+            bar.addView(fill, new LinearLayout.LayoutParams(0, -1, Math.max(0.02f, Math.min(1f, progress))));
+            bar.addView(new View(c), new LinearLayout.LayoutParams(0, -1, 1f - Math.min(1f, progress)));
+            card.addView(bar, new FrameLayout.LayoutParams(-1, dp(c, 3), Gravity.BOTTOM));
+        }
+        return card;
+    }
+
     /** Rounded, clipped, focusable frame with the Apple-TV-style focus behaviour. */
     private static FrameLayout baseTile(final Context c) {
         final FrameLayout tile = new FrameLayout(c);

@@ -34,7 +34,7 @@ public final class SettingsActivity extends Activity {
     private boolean backdropRequested;
     private TextView subtitle;
     private TextView footer;
-    private TextView homeValue, idleValue, albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
+    private TextView homeValue, idleValue, jellyfinValue, albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
     private View previewRow, albumsRow, serverRow;
     private String backdropFor;
 
@@ -109,6 +109,8 @@ public final class SettingsActivity extends Activity {
         dimValue = value(row(list, "Dim screen", v -> { prefs.dim = !prefs.dim; save(); }));
         homeValue = value(row(list, "Home screen background", v -> { prefs.homePhotos = !prefs.homePhotos; save(); }));
         idleValue = value(row(list, "Hide home apps when idle", v -> { prefs.nextIdle(); save(); }));
+        jellyfinValue = value(row(list, "Jellyfin continue watching",
+                v -> startActivity(new Intent(this, JellyfinSetupActivity.class))));
 
         footer = text("", 13, 0xFF9AA3B8, dp(10), 0);
         footer.setLineSpacing(0f, 1.2f);
@@ -201,6 +203,9 @@ public final class SettingsActivity extends Activity {
         dimValue.setText(prefs.dim ? "On" : "Off");
         homeValue.setText(prefs.homePhotos ? "Photos" : "Gradient");
         idleValue.setText(Prefs.idleLabel(prefs.homeIdleSec));
+        JellyfinConfig jf = JellyfinConfig.load(this);
+        jellyfinValue.setText(jf.isConnected()
+                ? (jf.userName == null || jf.userName.isEmpty() ? "Connected" : jf.userName) : "Set up");
 
         Boolean active = isActiveScreensaver();
         if (Boolean.TRUE.equals(active)) {

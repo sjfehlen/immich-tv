@@ -31,7 +31,14 @@ final class SetupServer {
     interface Listener {
         /** Called on the server thread after a configuration was saved. */
         void onSaved(Config config);
+
+        /** Jellyfin mode: called on the server thread once the server address checks out. */
+        default void onJellyfinServer(String url, String serverName) {
+        }
     }
+
+    /** True: the page asks for a Jellyfin address instead of the Immich setup. */
+    private final boolean jellyfin;
 
     private static final String TAG = "ImmichSetup";
     private static final Charset UTF8 = Charset.forName("UTF-8");
@@ -51,6 +58,11 @@ final class SetupServer {
     private List<AssetParser.Album> pendingAlbums;
 
     SetupServer(Context ctx, Listener listener) {
+        this(ctx, listener, false);
+    }
+
+    SetupServer(Context ctx, Listener listener, boolean jellyfin) {
+        this.jellyfin = jellyfin;
         this.appContext = ctx.getApplicationContext();
         this.listener = listener;
         byte[] b = new byte[8];
@@ -151,6 +163,16 @@ final class SetupServer {
         String sub = path.substring(prefix.length());
         Map<String, String> form = parseForm(body);
 
+        if (jellyfin) {
+            if ("GET".equals(method) && (sub.isEmpty() || sub.equals("/"))) {
+                respond(out, 200, jellyfinPage(null));
+            } else if ("POST".equals(method) && sub.equals("/jellyfin")) {
+                respond(out, 200, handleJellyfin(form.get("url")));
+            } else {
+                respond(out, 404, page("Not found", "<p>Not found.</p>"));
+            }
+            return;
+        }
         if ("GET".equals(method) && (sub.isEmpty() || sub.equals("/"))) {
             respond(out, 200, connectPage(null));
         } else if ("POST".equals(method) && sub.equals("/connect")) {
@@ -160,6 +182,38 @@ final class SetupServer {
         } else {
             respond(out, 404, page("Not found", "<p>Not found.</p>"));
         }
+    }
+
+    // ------------------------------------------------------------ Jellyfin
+
+    private String jellyfinPage(String error) {
+        JellyfinConfig c = JellyfinConfig.load(appContext);
+        StringBuilder sb = new StringBuilder();
+        if (error != null) sb.append("<p class=err>").append(esc(error)).append("</p>");
+        sb.append("<form method=post action='/s/").append(token).append("/jellyfin'>")
+                .append("<label>Jellyfin server address<input name=url type=url required autocapitalize=off "
+                        + "placeholder='http://192.168.1.10:8096' value='")
+                .append(c.serverUrl == null ? "" : esc(c.serverUrl)).append("'></label>")
+                .append("<p class=hint>The same address you use for Jellyfin in a browser. "
+                        + "Next, the TV shows a Quick Connect code to approve in the Jellyfin app.</p>")
+                .append("<button type=submit>Continue</button></form>");
+        return page("Connect Jellyfin", sb.toString());
+    }
+
+    private String handleJellyfin(String raw) {
+        String url = JellyfinConfig.normalizeUrl(raw);
+        if (url == null) return jellyfinPage("That address doesn't look right. Example: http://192.168.1.10:8096");
+        String name;
+        try {
+            name = new JellyfinClient(url, JellyfinConfig.load(appContext).deviceId, null).serverName();
+        } catch (Exception e) {
+            return jellyfinPage("Couldn't reach Jellyfin at that address from the TV ("
+                    + e.getClass().getSimpleName() + ").");
+        }
+        listener.onJellyfinServer(url, name);
+        return page("Almost done", "<p class=ok>Found <b>" + esc(name) + "</b>.</p>"
+                + "<p>Now look at the TV: it shows a 6-character code. In the Jellyfin app or web, open "
+                + "<b>Settings \u203A Quick Connect</b> and enter that code.</p>");
     }
 
     private String handleConnect(Map<String, String> form) {

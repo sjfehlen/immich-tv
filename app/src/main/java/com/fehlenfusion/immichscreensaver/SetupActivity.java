@@ -146,7 +146,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
     }
 
     /** One pixel per module plus a 4-module quiet zone; the ImageView scales it up. */
-    private static Bitmap render(QrCode qr) {
+    static Bitmap render(QrCode qr) {
         int quiet = 4;
         int n = qr.size + quiet * 2;
         int[] px = new int[n * n];
@@ -165,7 +165,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
     }
 
     /** First site-local IPv4 address on an up, non-loopback interface (Ethernet or Wi-Fi). */
-    private static String lanAddress() {
+    static String lanAddress() {
         try {
             for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
                 if (!ni.isUp() || ni.isLoopback()) continue;
