@@ -51,7 +51,9 @@ final class NowPlayingView extends LinearLayout {
                 outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(), radius);
             }
         });
-        setClipToOutline(true);
+        setClipToOutline(true);    // rounded glass edges
+        setClipToPadding(false);   // the focused button's zoom may reach into the padding
+        setClipChildren(false);
         setBackground(glassLayers(null)); // tint-only until the first snapshot
 
         art = new ImageView(c);
@@ -76,10 +78,11 @@ final class NowPlayingView extends LinearLayout {
             final GradientDrawable ring = new GradientDrawable();
             ring.setCornerRadius(r);
             ring.setColor(Color.TRANSPARENT);
-            ring.setStroke(Math.max(1, Tiles.dp(c, 2)), 0xCCFFFFFF);
+            ring.setStroke(Math.max(2, Tiles.dp(c, 3)), Color.WHITE);
             art.setOnFocusChangeListener((v, has) -> {
                 if (android.os.Build.VERSION.SDK_INT >= 23) v.setForeground(has ? ring : null);
-                v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).setDuration(140);
+                v.animate().scaleX(has ? 1.12f : 1f).scaleY(has ? 1.12f : 1f).setDuration(140);
+                v.setElevation(has ? Tiles.dp(c, 8) : 0);
             });
         }
 
