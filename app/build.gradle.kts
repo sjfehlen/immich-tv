@@ -13,8 +13,23 @@ android {
         applicationId = "com.fehlenfusion.immichscreensaver"
         minSdk = 21
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // Release builds on GitHub set these from the tag (v1.2.0 -> 1.2.0); local builds keep 1.
+        versionCode = (System.getenv("VERSION_CODE") ?: "1").toInt()
+        versionName = System.getenv("VERSION_NAME") ?: "1.0"
+    }
+
+    // GitHub release builds are signed with a key kept in the repo's Actions secrets, so every
+    // published APK has the same signature and installs over the previous one.
+    val releaseKeystore = System.getenv("RELEASE_KEYSTORE")?.let { file(it) }?.takeIf { it.exists() }
+    signingConfigs {
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -22,8 +37,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
-            // Signed with the local debug keystore (~/.android/debug.keystore), outside the repo.
-            signingConfig = signingConfigs.getByName("debug")
+            // Local builds: the debug keystore (~/.android/debug.keystore), outside the repo.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 
