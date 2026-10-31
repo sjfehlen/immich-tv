@@ -80,10 +80,12 @@ stores only the resulting access token, which you can revoke under *Dashboard �
 
 ## Now playing (Spotify and other media)
 
-When an app is playing or paused (Spotify, YouTube, Jellyfin, ...), a **Now playing** card shows
-album art, title and artist:
+When an app is playing or paused (Spotify, YouTube, Jellyfin, ...), a compact liquid-glass
+**Now playing** card shows album art, title and artist. Its background is a blurred snapshot of the
+photo behind it (refreshed when the photo changes), under a tint, top sheen and light rim:
 
-- **Home screen**: top-right, with previous / play-pause / next buttons (press **Up** from the apps).
+- **Home screen**: top-right, with previous / play-pause / next buttons (press **Up** from the apps);
+  select the album cover to open the playing app's player.
 - **Screensaver**: bottom-right; the remote controls it without waking the TV:
   **◀** previous, **▶** next, **OK** play/pause. Any other button ends the screensaver.
 

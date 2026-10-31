@@ -39,6 +39,10 @@ public final class PhotoDreamService extends DreamService {
         lp.rightMargin = Math.round(dm.widthPixels * 0.05f);
         lp.bottomMargin = Math.round(dm.heightPixels * 0.05f);
         root.addView(npView, lp);
+        npView.setBackdropSource(slideshow.getView());
+        slideshow.setOnPhotoShown(() -> {
+            if (npView != null) npView.refreshBackdrop();
+        });
         setContentView(root);
     }
 

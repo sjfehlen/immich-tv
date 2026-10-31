@@ -490,6 +490,7 @@ public final class HomeActivity extends Activity {
         npl.topMargin = Tiles.dp(this, 36);
         npl.rightMargin = padX;
         root.addView(npView, npl);
+        npView.setBackdropSource(photoHost);
 
         // Everything below the clock scrolls vertically: apps, then the Jellyfin rows.
         pager = new ScrollView(this);
@@ -584,6 +585,7 @@ public final class HomeActivity extends Activity {
             p.info = false;
             p.clock = Prefs.CLOCK_OFF;
             slideshow = new Slideshow(this, p, true);
+            slideshow.setOnPhotoShown(() -> npView.refreshBackdrop());
             photoHost.addView(slideshow.getView(), new FrameLayout.LayoutParams(-1, -1));
         }
         slideshow.start();

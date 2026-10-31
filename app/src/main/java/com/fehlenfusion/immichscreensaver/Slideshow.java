@@ -201,6 +201,13 @@ final class Slideshow {
         return root;
     }
 
+    private Runnable onPhotoShown;
+
+    /** Called on the main thread after each cross-fade completes (e.g. to refresh a glass blur). */
+    void setOnPhotoShown(Runnable r) {
+        onPhotoShown = r;
+    }
+
     /** Hides the photo date/place caption (e.g. while a Now playing card uses that corner). */
     void setCaptionHidden(boolean hidden) {
         infoView.setVisibility(hidden ? View.GONE : View.VISIBLE);
@@ -378,6 +385,7 @@ final class Slideshow {
             if (outgoing != null) outgoing.recycle();
             outgoing = null;
             prefetchNext();
+            if (onPhotoShown != null) onPhotoShown.run();
         });
     }
 

@@ -122,6 +122,40 @@ final class NowPlaying {
         else current.getTransportControls().play();
     }
 
+    /**
+     * Opens the playing app: its own "now playing" screen when the session offers one,
+     * otherwise its TV launcher entry.
+     */
+    void openApp(Context from) {
+        if (current == null) return;
+        android.app.PendingIntent pi = current.getSessionActivity();
+        if (pi != null) {
+            try {
+                android.os.Bundle opts = null;
+                if (Build.VERSION.SDK_INT >= 34) {
+                    // We are the foreground app sending on the user's behalf; allow the start.
+                    opts = android.app.ActivityOptions.makeBasic()
+                            .setPendingIntentBackgroundActivityStartMode(
+                                    android.app.ActivityOptions.MODE_BACKGROUND_ACTIVITY_START_ALLOWED)
+                            .toBundle();
+                }
+                pi.send(from, 0, null, null, null, null, opts);
+                return;
+            } catch (android.app.PendingIntent.CanceledException | RuntimeException ignored) {
+                // fall back to the launcher entry
+            }
+        }
+        android.content.pm.PackageManager pm = from.getPackageManager();
+        android.content.Intent launch = pm.getLeanbackLaunchIntentForPackage(current.getPackageName());
+        if (launch == null) launch = pm.getLaunchIntentForPackage(current.getPackageName());
+        if (launch != null) {
+            try {
+                from.startActivity(launch.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK));
+            } catch (RuntimeException ignored) {
+            }
+        }
+    }
+
     void next() {
         if (current != null) current.getTransportControls().skipToNext();
     }
