@@ -101,6 +101,7 @@ public final class HomeActivity extends Activity {
             return true;
         }
         if (!volume) scheduleHide();
+        if (event.getAction() == KeyEvent.ACTION_DOWN) Tiles.lastNavKey = code;
         return super.dispatchKeyEvent(event);
     }
 
@@ -194,9 +195,11 @@ public final class HomeActivity extends Activity {
 
         favScroll = new HorizontalScrollView(this);
         favScroll.setHorizontalScrollBarEnabled(false);
+        // Let the focused tile's zoom, lift and shadow draw outside the row's height.
+        favScroll.setClipChildren(false);
         favScroll.setClipToPadding(false);
         int edge = Tiles.dp(this, 16);
-        favScroll.setPadding(edge, Tiles.dp(this, 16), edge, Tiles.dp(this, 12)); // room for zoom + lift
+        favScroll.setPadding(edge, Tiles.dp(this, 20), edge, Tiles.dp(this, 14)); // room for zoom, lift and shadow
         favRow = new LinearLayout(this);
         favRow.setOrientation(LinearLayout.HORIZONTAL);
         favRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -208,7 +211,7 @@ public final class HomeActivity extends Activity {
         content.addView(favScroll, fsl);
 
         // Small settings button: the last item in the app row (added in buildFavorites).
-        firstShortcut = Tiles.roundButton(this, "\u2699");
+        firstShortcut = Tiles.settingsTile(this);
         firstShortcut.setContentDescription("Settings and more");
         firstShortcut.setOnClickListener(v -> showMenu());
         chrome = new View[]{bottomScrim, favScroll};
@@ -304,14 +307,12 @@ public final class HomeActivity extends Activity {
                 else if (focusLabel.getText().toString().equals(a.label)) focusLabel.setText("");
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
-            lp.rightMargin = Tiles.dp(this, 24); // 15% zoom needs ~8 dp each side
+            lp.rightMargin = Tiles.dp(this, 26); // 18% zoom needs ~10 dp each side
             favRow.addView(tile, lp);
             if (pkg.equals(focusedPkg)) restore = tile;
         }
 
-        int g = Tiles.dp(this, 52);
-        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(g, g);
-        gl.leftMargin = Tiles.dp(this, 4);
+        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(w, h);
         if (firstShortcut.getParent() != null) ((LinearLayout) firstShortcut.getParent()).removeView(firstShortcut);
         favRow.addView(firstShortcut, gl);
 

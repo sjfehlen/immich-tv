@@ -98,7 +98,7 @@ public final class AllAppsActivity extends Activity {
             label.setPadding(0, Tiles.dp(this, 6), 0, 0);
             cell.addView(label);
             LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(w, -2);
-            cl.rightMargin = Tiles.dp(this, 22);
+            cl.rightMargin = Tiles.dp(this, 28);
             row.addView(cell, cl);
         }
         if (grid.getChildCount() > 0 && getCurrentFocus() == null) {
@@ -130,6 +130,12 @@ public final class AllAppsActivity extends Activity {
         } catch (ActivityNotFoundException | SecurityException e) {
             Toast.makeText(this, "Can't open that", Toast.LENGTH_SHORT).show();
         }
+    }
+
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent event) {
+        if (event.getAction() == android.view.KeyEvent.ACTION_DOWN) Tiles.lastNavKey = event.getKeyCode();
+        return super.dispatchKeyEvent(event);
     }
 
     @Override

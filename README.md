@@ -21,7 +21,9 @@ runtime through a QR-code setup page and stored in app-private storage (backup d
 ## Photo home screen (launcher)
 
 `HomeActivity` is a minimal home screen: clock top-left, and along the bottom edge a row of
-favourite apps ending in a small ⚙ button (Play Store, TV settings, Photos & screensaver, All apps).
+favourite apps ending in a muted ⚙ tile (Play Store, TV settings, Photos & screensaver, All apps).
+Focus follows the Apple TV style: no outline; the selected tile rises, grows, casts a soft shadow,
+catches a soft gloss and briefly tilts toward the direction you moved.
 Hold OK or press Menu on a tile to move/remove it; add apps from **All apps**. Your Immich photos
 cross-fade behind everything (one every 30 s; falls back to a gradient offline). After a period
 with no remote input (*Hide home apps when idle*, default 30 s) the app row fades out, leaving
