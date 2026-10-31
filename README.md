@@ -1,5 +1,11 @@
 # Immich Home & Screensaver for Android TV
 
+> [!WARNING]
+> **This project is fully AI-generated.** All of the code, artwork and documentation were written
+> by an AI coding assistant (Claude) under human direction, and haven't been independently reviewed
+> or audited. It's a personal project, provided as is, with no warranty. Review it before you trust
+> it with your server, API keys or tokens.
+
 A photo home screen and screensaver for Android TV / Google TV, showing your [Immich](https://immich.app)
 albums, with Jellyfin, Home Assistant and now playing built in.
 
