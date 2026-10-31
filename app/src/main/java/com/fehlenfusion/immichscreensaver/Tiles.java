@@ -15,8 +15,8 @@ import android.widget.TextView;
 
 /** App tiles and shortcut pills for the home screen. Focus = quick scale + white outline. */
 final class Tiles {
-    static final int BANNER_W_DP = 136;
-    static final int BANNER_H_DP = 77;
+    static final int BANNER_W_DP = 112;
+    static final int BANNER_H_DP = 63;
 
     private Tiles() {}
 
@@ -104,6 +104,28 @@ final class Tiles {
             v.animate().scaleX(has ? 1.05f : 1f).scaleY(has ? 1.05f : 1f).setDuration(120);
         });
         return p;
+    }
+
+    /** Small round icon button (the home screen's settings button). */
+    static View roundButton(Context c, String glyph) {
+        TextView b = label(c, glyph, 24, Color.WHITE);
+        b.setGravity(Gravity.CENTER);
+        b.setFocusable(true);
+        b.setClickable(true);
+        final GradientDrawable normal = new GradientDrawable();
+        normal.setShape(GradientDrawable.OVAL);
+        normal.setColor(0x4D000000);
+        normal.setStroke(dp(c, 1), 0x66FFFFFF);
+        final GradientDrawable focused = new GradientDrawable();
+        focused.setShape(GradientDrawable.OVAL);
+        focused.setColor(0x80FFFFFF);
+        focused.setStroke(dp(c, 2), Color.WHITE);
+        b.setBackground(normal);
+        b.setOnFocusChangeListener((v, has) -> {
+            v.setBackground(has ? focused : normal);
+            v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).setDuration(120);
+        });
+        return b;
     }
 
     static TextView label(Context c, String s, int sp, int color) {

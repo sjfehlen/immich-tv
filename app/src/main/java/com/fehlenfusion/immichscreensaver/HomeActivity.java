@@ -39,6 +39,12 @@ public final class HomeActivity extends Activity {
     private HorizontalScrollView favScroll;
     private TextView focusLabel;
     private View firstShortcut;
+    private View[] chrome = new View[0]; // what fades out when idle
+    private final android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private boolean chromeHidden;
+    private int swallowKeyUp = -1;
+    private int idleSec;
+    private final Runnable hideChrome = this::hideChrome;
 
     private List<AppsRepo.App> apps = new ArrayList<>();
     private final Map<String, AppsRepo.App> appsByPkg = new HashMap<>();
@@ -62,6 +68,60 @@ public final class HomeActivity extends Activity {
     protected void onStop() {
         stopPhotos();
         super.onStop();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        idleSec = Prefs.load(this).homeIdleSec;
+        showChrome(false);
+    }
+
+    @Override
+    protected void onPause() {
+        handler.removeCallbacks(hideChrome);
+        super.onPause();
+    }
+
+    // ------------------------------------------------------------ idle: photos only
+
+    /** Any remote key wakes the apps; the waking key itself is swallowed so it can't open anything. */
+    @Override
+    public boolean dispatchKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+        boolean volume = code == KeyEvent.KEYCODE_VOLUME_UP || code == KeyEvent.KEYCODE_VOLUME_DOWN
+                || code == KeyEvent.KEYCODE_VOLUME_MUTE;
+        if (event.getAction() == KeyEvent.ACTION_UP && code == swallowKeyUp) {
+            swallowKeyUp = -1;
+            return true;
+        }
+        if (chromeHidden && !volume && event.getAction() == KeyEvent.ACTION_DOWN) {
+            swallowKeyUp = code;
+            showChrome(true);
+            return true;
+        }
+        if (!volume) scheduleHide();
+        return super.dispatchKeyEvent(event);
+    }
+
+    private void scheduleHide() {
+        handler.removeCallbacks(hideChrome);
+        if (idleSec > 0) handler.postDelayed(hideChrome, idleSec * 1000L);
+    }
+
+    private void hideChrome() {
+        chromeHidden = true;
+        for (View v : chrome) v.animate().alpha(0f).setDuration(800);
+    }
+
+    private void showChrome(boolean animate) {
+        chromeHidden = false;
+        for (View v : chrome) {
+            v.animate().cancel();
+            if (animate) v.animate().alpha(1f).setDuration(250);
+            else v.setAlpha(1f);
+        }
+        scheduleHide();
     }
 
     @Override
@@ -97,15 +157,17 @@ public final class HomeActivity extends Activity {
         top.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
                 new int[]{0x99000000, 0x00000000}));
         root.addView(top, new FrameLayout.LayoutParams(-1, Math.round(h * 0.42f), Gravity.TOP));
+        // Light gradient only behind the app row, so most of the photo stays clear.
         View bottom = new View(this);
         bottom.setBackground(new GradientDrawable(GradientDrawable.Orientation.BOTTOM_TOP,
-                new int[]{0xCC000000, 0x80000000, 0x00000000}));
-        root.addView(bottom, new FrameLayout.LayoutParams(-1, Math.round(h * 0.62f), Gravity.BOTTOM));
+                new int[]{0xB3000000, 0x40000000, 0x00000000}));
+        root.addView(bottom, new FrameLayout.LayoutParams(-1, Math.round(h * 0.33f), Gravity.BOTTOM));
+        final View bottomScrim = bottom;
 
         int padX = Tiles.dp(this, 48);
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(padX, Tiles.dp(this, 40), padX, Tiles.dp(this, 32));
+        content.setPadding(padX, Tiles.dp(this, 36), padX, Tiles.dp(this, 26));
         content.setClipChildren(false);
         content.setClipToPadding(false);
         root.addView(content, new FrameLayout.LayoutParams(-1, -1));
@@ -113,12 +175,12 @@ public final class HomeActivity extends Activity {
         TextClock date = new TextClock(this);
         date.setFormat12Hour("EEEE, MMMM d");
         date.setFormat24Hour("EEEE, MMMM d");
-        styleClock(date, 18);
+        styleClock(date, 17);
         content.addView(date);
         TextClock time = new TextClock(this);
         time.setFormat12Hour("h:mm");
         time.setFormat24Hour("H:mm");
-        styleClock(time, 84);
+        styleClock(time, 72);
         time.setTypeface(Typeface.create("sans-serif-light", Typeface.NORMAL));
         time.setIncludeFontPadding(false);
         content.addView(time);
@@ -126,41 +188,44 @@ public final class HomeActivity extends Activity {
         View spacer = new View(this);
         content.addView(spacer, new LinearLayout.LayoutParams(1, 0, 1f));
 
+        // The focused tile's zoom and outline are enough; no name label.
+        focusLabel = Tiles.label(this, "", 15, Color.WHITE);
+        focusLabel.setVisibility(View.GONE);
+
         favScroll = new HorizontalScrollView(this);
         favScroll.setHorizontalScrollBarEnabled(false);
-        favScroll.setClipChildren(false);
         favScroll.setClipToPadding(false);
-        favScroll.setPadding(Tiles.dp(this, 8), Tiles.dp(this, 10), Tiles.dp(this, 8), Tiles.dp(this, 6));
+        int edge = Tiles.dp(this, 16);
+        favScroll.setPadding(edge, Tiles.dp(this, 8), edge, Tiles.dp(this, 8));
         favRow = new LinearLayout(this);
         favRow.setOrientation(LinearLayout.HORIZONTAL);
+        favRow.setGravity(Gravity.CENTER_VERTICAL);
         favRow.setClipChildren(false);
         favScroll.addView(favRow);
         LinearLayout.LayoutParams fsl = new LinearLayout.LayoutParams(-1, -2);
-        fsl.leftMargin = -Tiles.dp(this, 8);
+        fsl.leftMargin = -edge;
+        fsl.rightMargin = -edge;
         content.addView(favScroll, fsl);
 
-        focusLabel = Tiles.label(this, "", 16, Color.WHITE);
-        focusLabel.setPadding(0, Tiles.dp(this, 2), 0, Tiles.dp(this, 14));
-        content.addView(focusLabel);
-
-        LinearLayout shortcuts = new LinearLayout(this);
-        shortcuts.setOrientation(LinearLayout.HORIZONTAL);
-        shortcuts.setClipChildren(false);
-        firstShortcut = addShortcut(shortcuts, "▶", "Play Store", v -> launchPackage("com.android.vending"));
-        addShortcut(shortcuts, "⚙", "TV settings", v -> start(new Intent(Settings.ACTION_SETTINGS)));
-        addShortcut(shortcuts, "▣", "Photos", v -> start(new Intent(this, SettingsActivity.class)));
-        addShortcut(shortcuts, "☰", "All apps", v -> start(new Intent(this, AllAppsActivity.class)));
-        content.addView(shortcuts);
+        // Small settings button: the last item in the app row (added in buildFavorites).
+        firstShortcut = Tiles.roundButton(this, "\u2699");
+        firstShortcut.setContentDescription("Settings and more");
+        firstShortcut.setOnClickListener(v -> showMenu());
+        chrome = new View[]{bottomScrim, favScroll};
         return root;
     }
 
-    private View addShortcut(LinearLayout row, String glyph, String text, View.OnClickListener l) {
-        View p = Tiles.pill(this, glyph, text);
-        p.setOnClickListener(l);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(Tiles.dp(this, 136), Tiles.dp(this, 64));
-        lp.rightMargin = Tiles.dp(this, 16);
-        row.addView(p, lp);
-        return p;
+    /** The small ⚙ button's menu: what used to be the shortcut row. */
+    private void showMenu() {
+        String[] items = {"Play Store", "TV settings", "Photos & screensaver", "All apps"};
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setItems(items, (d, which) -> {
+                    if (which == 0) launchPackage("com.android.vending");
+                    else if (which == 1) start(new Intent(Settings.ACTION_SETTINGS));
+                    else if (which == 2) start(new Intent(this, SettingsActivity.class));
+                    else start(new Intent(this, AllAppsActivity.class));
+                })
+                .show();
     }
 
     private static void styleClock(TextView t, int sp) {
@@ -243,9 +308,12 @@ public final class HomeActivity extends Activity {
             favRow.addView(tile, lp);
             if (pkg.equals(focusedPkg)) restore = tile;
         }
-        View add = Tiles.pill(this, "+", "Add app");
-        add.setOnClickListener(v -> start(new Intent(this, AllAppsActivity.class)));
-        favRow.addView(add, new LinearLayout.LayoutParams(w, h));
+
+        int g = Tiles.dp(this, 52);
+        LinearLayout.LayoutParams gl = new LinearLayout.LayoutParams(g, g);
+        gl.leftMargin = Tiles.dp(this, 4);
+        if (firstShortcut.getParent() != null) ((LinearLayout) firstShortcut.getParent()).removeView(firstShortcut);
+        favRow.addView(firstShortcut, gl);
 
         if (restore != null) restore.requestFocus();
         else if (!hadFocus) focusFirst();

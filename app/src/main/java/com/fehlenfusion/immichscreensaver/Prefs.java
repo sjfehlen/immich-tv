@@ -27,6 +27,9 @@ final class Prefs {
     boolean info = true;
     boolean dim = false;
     boolean homePhotos = true;
+    /** Seconds of no remote input before the home screen fades to photos only; 0 = never. */
+    int homeIdleSec = 30;
+    static final int[] IDLE_SEC = {15, 30, 60, 120, 0};
 
     static Prefs load(Context ctx) {
         SharedPreferences p = ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE);
@@ -39,6 +42,7 @@ final class Prefs {
         r.info = p.getBoolean("info", r.info);
         r.dim = p.getBoolean("dim", r.dim);
         r.homePhotos = p.getBoolean("homePhotos", r.homePhotos);
+        r.homeIdleSec = Math.max(0, p.getInt("homeIdle", r.homeIdleSec));
         if (r.durationSec < 5) r.durationSec = 20;
         return r;
     }
@@ -53,6 +57,7 @@ final class Prefs {
                 .putBoolean("info", info)
                 .putBoolean("dim", dim)
                 .putBoolean("homePhotos", homePhotos)
+                .putInt("homeIdle", homeIdleSec)
                 .apply();
     }
 
@@ -64,6 +69,20 @@ final class Prefs {
             }
         }
         durationSec = 20;
+    }
+
+    void nextIdle() {
+        for (int i = 0; i < IDLE_SEC.length; i++) {
+            if (IDLE_SEC[i] == homeIdleSec) {
+                homeIdleSec = IDLE_SEC[(i + 1) % IDLE_SEC.length];
+                return;
+            }
+        }
+        homeIdleSec = 30;
+    }
+
+    static String idleLabel(int sec) {
+        return sec == 0 ? "Never" : "After " + durationLabel(sec);
     }
 
     static String durationLabel(int sec) {

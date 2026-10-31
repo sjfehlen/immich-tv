@@ -34,7 +34,7 @@ public final class SettingsActivity extends Activity {
     private boolean backdropRequested;
     private TextView subtitle;
     private TextView footer;
-    private TextView homeValue, albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
+    private TextView homeValue, idleValue, albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
     private View previewRow, albumsRow, serverRow;
     private String backdropFor;
 
@@ -108,6 +108,7 @@ public final class SettingsActivity extends Activity {
         infoValue = value(row(list, "Photo date & place", v -> { prefs.info = !prefs.info; save(); }));
         dimValue = value(row(list, "Dim screen", v -> { prefs.dim = !prefs.dim; save(); }));
         homeValue = value(row(list, "Home screen background", v -> { prefs.homePhotos = !prefs.homePhotos; save(); }));
+        idleValue = value(row(list, "Hide home apps when idle", v -> { prefs.nextIdle(); save(); }));
 
         footer = text("", 13, 0xFF9AA3B8, dp(10), 0);
         footer.setLineSpacing(0f, 1.2f);
@@ -199,6 +200,7 @@ public final class SettingsActivity extends Activity {
         infoValue.setText(prefs.info ? "On" : "Off");
         dimValue.setText(prefs.dim ? "On" : "Off");
         homeValue.setText(prefs.homePhotos ? "Photos" : "Gradient");
+        idleValue.setText(Prefs.idleLabel(prefs.homeIdleSec));
 
         Boolean active = isActiveScreensaver();
         if (Boolean.TRUE.equals(active)) {

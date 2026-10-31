@@ -20,10 +20,12 @@ runtime through a QR-code setup page and stored in app-private storage (backup d
 
 ## Photo home screen (launcher)
 
-`HomeActivity` is a home screen in the style of a minimal TV launcher: clock top-left, a row of
-favourite apps (hold OK or press Menu on a tile to move/remove it; **Add app** / **All apps** to add
-more), shortcuts for Play Store, TV settings, Photos (this app's settings) and All apps, and your
-Immich photos cross-fading behind everything (one every 30 s; falls back to a gradient offline).
+`HomeActivity` is a minimal home screen: clock top-left, and along the bottom edge a row of
+favourite apps ending in a small ⚙ button (Play Store, TV settings, Photos & screensaver, All apps).
+Hold OK or press Menu on a tile to move/remove it; add apps from **All apps**. Your Immich photos
+cross-fade behind everything (one every 30 s; falls back to a gradient offline). After a period
+with no remote input (*Hide home apps when idle*, default 30 s) the app row fades out, leaving
+photos and the clock; the first key press only brings it back.
 The slideshow runs only while the home screen is visible. Turn the photos off under
 *Home screen background* in Settings.
 
@@ -74,6 +76,7 @@ from your album:
 | Photo date & place | Caption from the photo's EXIF, e.g. "October 12, 2023 · Austin, Texas" |
 | Dim screen | Lower brightness while the screensaver runs |
 | Home screen background | Photos · Gradient |
+| Hide home apps when idle | After 15 s · 30 s · 1 min · 2 min · Never |
 
 The screen also tells you whether the app is currently the TV's screensaver. Other touches: a soft
 gradient behind the clock for readability, and the clock shifts a few pixels with each photo to
