@@ -100,4 +100,18 @@ public class JellyfinTest {
         assertEquals("", cards.get(2).subtitle);
         assertNull(cards.get(2).imagePath);
     }
+
+    @Test
+    public void filtersLibrariesByType() throws Exception {
+        String json = "{\"Items\":["
+                + "{\"Id\":\"" + MOVIE + "\",\"Name\":\"Movies\",\"CollectionType\":\"movies\"},"
+                + "{\"Id\":\"" + SERIES + "\",\"Name\":\"Shows\",\"CollectionType\":\"tvshows\"},"
+                + "{\"Id\":\"" + NEXT + "\",\"Name\":\"Kids Movies\",\"CollectionType\":\"movies\"},"
+                + "{\"Id\":\"" + EP + "\",\"Name\":\"Music\",\"CollectionType\":\"music\"}]}";
+        List<JellyfinParser.Library> movies = JellyfinParser.libraries(json, "movies");
+        assertEquals(2, movies.size());
+        assertEquals("Kids Movies", movies.get(1).name);
+        assertEquals(1, JellyfinParser.libraries(json, "tvshows").size());
+        assertEquals(0, JellyfinParser.libraries("{}", "movies").size());
+    }
 }

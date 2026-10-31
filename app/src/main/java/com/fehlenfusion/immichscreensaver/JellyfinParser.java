@@ -165,6 +165,35 @@ final class JellyfinParser {
         return out;
     }
 
+    /** A top-level library ("user view"): Movies, Shows, ... */
+    static final class Library {
+        final String id;
+        final String name;
+        final String collectionType; // "movies", "tvshows", ...
+
+        Library(String id, String name, String collectionType) {
+            this.id = id;
+            this.name = name;
+            this.collectionType = collectionType;
+        }
+    }
+
+    /** GET /UserViews: {"Items":[{"Id","Name","CollectionType"}]}. Returns libraries of the given type. */
+    static List<Library> libraries(String json, String collectionType) throws JSONException {
+        List<Library> out = new ArrayList<>();
+        JSONArray items = new JSONObject(json).optJSONArray("Items");
+        if (items == null) return out;
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject o = items.optJSONObject(i);
+            if (o == null) continue;
+            String id = AssetParser.str(o, "Id");
+            if (!isId(id) || !collectionType.equals(AssetParser.str(o, "CollectionType"))) continue;
+            String name = AssetParser.str(o, "Name");
+            out.add(new Library(id, name == null ? "Library" : name, collectionType));
+        }
+        return out;
+    }
+
     /** Quick Connect: {"Secret":..,"Code":..,"Authenticated":..}. */
     static final class QuickConnect {
         final String secret;

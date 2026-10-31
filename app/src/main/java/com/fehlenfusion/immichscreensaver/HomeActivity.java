@@ -246,11 +246,14 @@ public final class HomeActivity extends Activity {
         final Loader loader;
         final String emptyTitle;
         final String emptySubtitle;
+        /** Jellyfin collection type for the "View all" cards ("movies", "tvshows"), or null. */
+        final String libraryType;
         final List<Bitmap> bitmaps = new ArrayList<>();
         int gen;
 
-        MediaRow(String title, String emptyTitle, String emptySubtitle, Loader loader) {
+        MediaRow(String title, String emptyTitle, String emptySubtitle, String libraryType, Loader loader) {
             this.loader = loader;
+            this.libraryType = libraryType;
             this.emptyTitle = emptyTitle;
             this.emptySubtitle = emptySubtitle;
             view = new LinearLayout(HomeActivity.this);
@@ -302,6 +305,16 @@ public final class HomeActivity extends Activity {
                     if (my == gen && !isDestroyed()) show(list, err, c);
                 });
                 if (list == null) return;
+                if (libraryType != null) {
+                    try {
+                        final List<JellyfinParser.Library> libs = client.libraries(c.userId, libraryType);
+                        runOnUiThread(() -> {
+                            if (my == gen && !isDestroyed()) addViewAll(libs);
+                        });
+                    } catch (Exception ignored) {
+                        // no "View all" card; the row still works
+                    }
+                }
                 for (int i = 0; i < list.size() && my == gen; i++) {
                     Bitmap bmp = null;
                     try {
@@ -355,6 +368,18 @@ public final class HomeActivity extends Activity {
             row.removeViews(0, old); // the Loading card(s); they hold no images
         }
 
+        /** Appended after the cards (image indexes above stay valid). */
+        void addViewAll(List<JellyfinParser.Library> libs) {
+            int w = Tiles.dp(HomeActivity.this, CARD_W_DP), h = Tiles.dp(HomeActivity.this, CARD_H_DP);
+            for (final JellyfinParser.Library lib : libs) {
+                View v = Tiles.viewAllTile(HomeActivity.this, lib.name);
+                v.setOnClickListener(x -> openLibraryInJellyfin(lib.id));
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
+                lp.rightMargin = Tiles.dp(HomeActivity.this, 30);
+                row.addView(v, lp);
+            }
+        }
+
         View info(String title, String subtitle, View.OnClickListener l) {
             View v = Tiles.mediaCard(HomeActivity.this, title == null ? "" : title, subtitle, 0f);
             if (l != null) v.setOnClickListener(l);
@@ -374,6 +399,13 @@ public final class HomeActivity extends Activity {
             for (Bitmap b : bitmaps) b.recycle();
             bitmaps.clear();
         }
+    }
+
+    private void openLibraryInJellyfin(String libraryId) {
+        // ItemIsUserView makes Jellyfin open the library's browse screen instead of item details.
+        start(new Intent(Intent.ACTION_VIEW, Uri.parse(libraryId))
+                .putExtra("ItemIsUserView", true)
+                .setClassName("org.jellyfin.androidtv", "org.jellyfin.androidtv.ui.startup.StartupActivity"));
     }
 
     private void openInJellyfin(String itemId) {
@@ -470,11 +502,11 @@ public final class HomeActivity extends Activity {
         media.setClipChildren(false);
         media.setVisibility(View.GONE);
         rows = new MediaRow[]{
-                new MediaRow("Continue watching", "Nothing in progress", "Start something in Jellyfin",
+                new MediaRow("Continue watching", "Nothing in progress", "Start something in Jellyfin", null,
                         (cl, user) -> cl.continueWatching(user)),
-                new MediaRow("Recently added movies", "No new movies", "Open Jellyfin",
+                new MediaRow("Recently added movies", "No new movies", "Open Jellyfin", "movies",
                         (cl, user) -> cl.latest(user, "Movie")),
-                new MediaRow("Recently added shows", "No new episodes", "Open Jellyfin",
+                new MediaRow("Recently added shows", "No new episodes", "Open Jellyfin", "tvshows",
                         (cl, user) -> cl.latest(user, "Episode")),
         };
         for (MediaRow r : rows) media.addView(r.view);

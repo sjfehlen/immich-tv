@@ -76,7 +76,7 @@ final class Tiles {
         FrameLayout tile = baseTile(c);
         tile.setContentDescription("Settings and more");
         GradientDrawable bg = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x59303540, 0x59181B22});
+                new int[]{0xFF2A2E37, 0xFF1C1F26});
         tile.setBackground(bg);
         TextView gear = label(c, "⚙", 26, 0xB3FFFFFF);
         gear.setShadowLayer(0, 0, 0, 0);
@@ -132,6 +132,32 @@ final class Tiles {
             card.addView(bar, new FrameLayout.LayoutParams(-1, dp(c, 3), Gravity.BOTTOM));
         }
         return card;
+    }
+
+    /** "View all" card at the end of a row: muted glass, an arrow and the library name. */
+    static View viewAllTile(Context c, String libraryName) {
+        FrameLayout tile = baseTile(c);
+        tile.setContentDescription("View all " + libraryName);
+        tile.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0xFF2A2E37, 0xFF1C1F26}));
+        LinearLayout inner = new LinearLayout(c);
+        inner.setOrientation(LinearLayout.VERTICAL);
+        inner.setGravity(Gravity.CENTER);
+        TextView arrow = label(c, "\u2192", 26, 0xCCFFFFFF);
+        arrow.setGravity(Gravity.CENTER);
+        inner.addView(arrow);
+        TextView t = label(c, "View all", 14, Color.WHITE);
+        t.setGravity(Gravity.CENTER);
+        t.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        inner.addView(t);
+        TextView n = label(c, libraryName, 12, 0xB3FFFFFF);
+        n.setGravity(Gravity.CENTER);
+        n.setSingleLine(true);
+        n.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        n.setPadding(dp(c, 8), 0, dp(c, 8), 0);
+        inner.addView(n);
+        tile.addView(inner, new FrameLayout.LayoutParams(-1, -1));
+        return tile;
     }
 
     /** Rounded, clipped, focusable frame with the Apple-TV-style focus behaviour. */

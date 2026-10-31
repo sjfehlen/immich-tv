@@ -105,6 +105,18 @@ final class JellyfinClient {
         }
     }
 
+    /** The user's libraries of one type ("movies" or "tvshows"). */
+    List<JellyfinParser.Library> libraries(String userId, String collectionType) throws IOException, JSONException {
+        String json;
+        try {
+            json = get("/UserViews?userId=" + enc(userId));
+        } catch (ImmichClient.HttpStatusException e) {
+            if (e.code != 404) throw e; // servers before 10.9
+            json = get("/Users/" + enc(userId) + "/Views");
+        }
+        return JellyfinParser.libraries(json, collectionType);
+    }
+
     /** Card art, decoded small (RGB_565) for a card of maxW px. */
     Bitmap image(JellyfinParser.Card c, int maxW) throws IOException {
         if (c.imageItemId == null) return null;
