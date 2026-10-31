@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home Assistant "PlayStation Setup" tile: a white two-tone controller on PlayStation blue. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="112dp"
+    android:height="63dp"
+    android:viewportWidth="224"
+    android:viewportHeight="126">
+    <path android:fillColor="#00439C" android:pathData="M0,0h224v126h-224z" />
+    <path android:fillColor="#40001A4D" android:pathData="M0,70C70,50 150,110 224,80V126H0Z" />
+    <path android:fillColor="#1AFFFFFF" android:pathData="M112,20m-90,0a90,40 0,1 0,180 0a90,40 0,1 0,-180 0" />
+    <!-- shadow -->
+    <path android:fillColor="#40000000" android:pathData="M50,104h124c0,4 -10,6 -62,6s-62,-2 -62,-6z" />
+    <!-- white body with grips -->
+    <path android:fillColor="#F2F3F5"
+        android:pathData="M72,28C84,24 140,24 152,28C166,32 176,58 182,82C186,98 172,106 162,96L148,82L76,82L62,96C52,106 38,98 42,82C48,58 58,32 72,28Z" />
+    <!-- black centre -->
+    <path android:fillColor="#1B1C21"
+        android:pathData="M84,34L140,34L146,54C150,66 146,80 136,80L88,80C78,80 74,66 78,54Z" />
+    <!-- touchpad -->
+    <path android:fillColor="#E4E6EA"
+        android:pathData="M88,28C100,26 124,26 136,28L138,50C126,53 98,53 86,50Z" />
+    <!-- light bar -->
+    <path android:fillColor="#6FB4FF" android:pathData="M86,51C98,54 126,54 138,51L138,53C126,56 98,56 86,53Z" />
+    <!-- sticks -->
+    <path android:fillColor="#2E3036" android:strokeColor="#45474F" android:strokeWidth="1.2"
+        android:pathData="M90,66a7,7 0,1 0,14 0a7,7 0,1 0,-14 0zM120,66a7,7 0,1 0,14 0a7,7 0,1 0,-14 0z" />
+    <!-- d-pad -->
+    <path android:fillColor="#B9BDC6"
+        android:pathData="M64.5,40h5v6h6v5h-6v6h-5v-6h-6v-5h6z" />
+    <!-- face buttons -->
+    <path android:fillColor="#00000000" android:strokeColor="#A7ACB7" android:strokeWidth="1.4"
+        android:pathData="M155,40a2.6,2.6 0,1 0,5.2 0a2.6,2.6 0,1 0,-5.2 0zM155,56a2.6,2.6 0,1 0,5.2 0a2.6,2.6 0,1 0,-5.2 0zM147,48a2.6,2.6 0,1 0,5.2 0a2.6,2.6 0,1 0,-5.2 0zM163,48a2.6,2.6 0,1 0,5.2 0a2.6,2.6 0,1 0,-5.2 0z" />
+</vector>

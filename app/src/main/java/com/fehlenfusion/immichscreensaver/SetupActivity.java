@@ -23,6 +23,10 @@ import java.util.Collections;
  * {@link SetupServer}. The server only runs while this screen is visible.
  */
 public final class SetupActivity extends Activity implements SetupServer.Listener {
+    /** Boolean extra: set up the Home Assistant connection instead of Immich. */
+    static final String EXTRA_HOME_ASSISTANT = "homeAssistant";
+
+    private boolean ha;
     private SetupServer server;
     private ImageView qrView;
     private TextView urlView;
@@ -33,6 +37,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        ha = getIntent().getBooleanExtra(EXTRA_HOME_ASSISTANT, false);
         setContentView(buildLayout());
     }
 
@@ -45,7 +50,7 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
             showQr(null, "This TV isn't connected to a network.");
             return;
         }
-        server = new SetupServer(this, this);
+        server = new SetupServer(this, this, ha ? SetupServer.MODE_HOME_ASSISTANT : SetupServer.MODE_IMMICH);
         try {
             int port = server.start();
             String host = ip.contains(":") ? "[" + ip + "]" : ip;
@@ -74,6 +79,15 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         });
     }
 
+    @Override
+    public void onHomeAssistantSaved(String url) {
+        runOnUiThread(() -> {
+            refreshStatus();
+            statusView.setText("\u2713 Connected to " + url + ". Returning\u2026");
+            statusView.postDelayed(this::finish, 2500);
+        });
+    }
+
     // ------------------------------------------------------------ UI
 
     private View buildLayout() {
@@ -88,15 +102,18 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
         text.setOrientation(LinearLayout.VERTICAL);
         root.addView(text, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
 
-        text.addView(label("Immich Screensaver", 34, Color.WHITE));
-        text.addView(label("1.  Scan the QR code with your phone (same Wi-Fi as the TV).\n"
+        text.addView(label(ha ? "Home Assistant" : "Immich Screensaver", 34, Color.WHITE));
+        text.addView(label(ha
+                ? "1.  Scan the QR code with your phone (same Wi-Fi as the TV).\n"
+                + "2.  Enter your Home Assistant address and a long-lived access token."
+                : "1.  Scan the QR code with your phone (same Wi-Fi as the TV).\n"
                 + "2.  Enter your Immich server address and API key.\n"
                 + "3.  Pick the album to show.", 18, 0xFFD1D5DB));
         urlView = label("", 14, 0xFF9CA3AF);
         text.addView(urlView);
         statusView = label("", 18, 0xFF86EFAC);
         text.addView(statusView);
-        text.addView(label("Press Back to return to settings.", 14, 0xFF9CA3AF));
+        text.addView(label(ha ? "Press Back to return." : "Press Back to return to settings.", 14, 0xFF9CA3AF));
 
         qrView = new ImageView(this);
         qrView.setBackgroundColor(Color.WHITE);
@@ -118,6 +135,12 @@ public final class SetupActivity extends Activity implements SetupServer.Listene
     }
 
     private void refreshStatus() {
+        if (ha) {
+            HaConfig h = HaConfig.load(this);
+            statusView.setTextColor(h.isConnected() ? 0xFF86EFAC : 0xFFFCD34D);
+            statusView.setText(h.isConnected() ? "Connected to " + h.url + ". Scan again to change." : "Not set up yet.");
+            return;
+        }
         Config c = Config.load(this);
         if (c.isComplete()) {
             statusView.setTextColor(0xFF86EFAC);

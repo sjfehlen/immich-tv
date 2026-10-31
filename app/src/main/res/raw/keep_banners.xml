@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The local product photos are looked up by name (HaScripts), so the shrinker can't see them. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/banner_*_photo" />

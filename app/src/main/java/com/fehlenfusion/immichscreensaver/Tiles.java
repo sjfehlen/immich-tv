@@ -74,6 +74,18 @@ final class Tiles {
         return tile;
     }
 
+    /** A Home Assistant script that sits in the app row: just its banner, like an app. */
+    static View scriptTile(Context c, HaScripts.Script s) {
+        FrameLayout tile = baseTile(c);
+        tile.setLongClickable(true);
+        tile.setContentDescription(s.label);
+        ImageView iv = new ImageView(c);
+        iv.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        iv.setImageDrawable(HaScripts.banner(c, s));
+        tile.addView(iv, new FrameLayout.LayoutParams(-1, -1));
+        return tile;
+    }
+
     /**
      * Settings as an ordinary tile at the end of the row, muted like tvOS's Settings icon:
      * the same frosted material as the now playing card (the caller attaches a {@link Frost})

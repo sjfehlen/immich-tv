@@ -35,10 +35,15 @@ final class SetupServer {
         /** Jellyfin mode: called on the server thread once the server address checks out. */
         default void onJellyfinServer(String url, String serverName) {
         }
+
+        /** Home Assistant mode: called on the server thread once the address and token work. */
+        default void onHomeAssistantSaved(String url) {
+        }
     }
 
-    /** True: the page asks for a Jellyfin address instead of the Immich setup. */
-    private final boolean jellyfin;
+    /** What the phone page sets up. */
+    static final int MODE_IMMICH = 0, MODE_JELLYFIN = 1, MODE_HOME_ASSISTANT = 2;
+    private final int mode;
 
     private static final String TAG = "ImmichSetup";
     private static final Charset UTF8 = Charset.forName("UTF-8");
@@ -58,11 +63,15 @@ final class SetupServer {
     private List<AssetParser.Album> pendingAlbums;
 
     SetupServer(Context ctx, Listener listener) {
-        this(ctx, listener, false);
+        this(ctx, listener, MODE_IMMICH);
     }
 
     SetupServer(Context ctx, Listener listener, boolean jellyfin) {
-        this.jellyfin = jellyfin;
+        this(ctx, listener, jellyfin ? MODE_JELLYFIN : MODE_IMMICH);
+    }
+
+    SetupServer(Context ctx, Listener listener, int mode) {
+        this.mode = mode;
         this.appContext = ctx.getApplicationContext();
         this.listener = listener;
         byte[] b = new byte[8];
@@ -163,7 +172,17 @@ final class SetupServer {
         String sub = path.substring(prefix.length());
         Map<String, String> form = parseForm(body);
 
-        if (jellyfin) {
+        if (mode == MODE_HOME_ASSISTANT) {
+            if ("GET".equals(method) && (sub.isEmpty() || sub.equals("/"))) {
+                respond(out, 200, haPage(null));
+            } else if ("POST".equals(method) && sub.equals("/ha")) {
+                respond(out, 200, handleHa(form.get("url"), form.get("token")));
+            } else {
+                respond(out, 404, page("Not found", "<p>Not found.</p>"));
+            }
+            return;
+        }
+        if (mode == MODE_JELLYFIN) {
             if ("GET".equals(method) && (sub.isEmpty() || sub.equals("/"))) {
                 respond(out, 200, jellyfinPage(null));
             } else if ("POST".equals(method) && sub.equals("/jellyfin")) {
@@ -182,6 +201,46 @@ final class SetupServer {
         } else {
             respond(out, 404, page("Not found", "<p>Not found.</p>"));
         }
+    }
+
+    // ------------------------------------------------------------ Home Assistant
+
+    private String haPage(String error) {
+        HaConfig c = HaConfig.load(appContext);
+        StringBuilder sb = new StringBuilder();
+        if (error != null) sb.append("<p class=err>").append(esc(error)).append("</p>");
+        sb.append("<form method=post action='/s/").append(token).append("/ha'>")
+                .append("<label>Home Assistant address<input name=url type=url required autocapitalize=off "
+                        + "placeholder='http://homeassistant.local:8123' value='")
+                .append(c.url == null ? "" : esc(c.url)).append("'></label>")
+                .append("<label>Long-lived access token<input name=token type=password autocomplete=off "
+                        + "autocapitalize=off placeholder='")
+                .append(c.token != null ? "(leave blank to keep the saved token)" : "paste the token").append("'></label>")
+                .append("<p class=hint>Create it in Home Assistant \u2192 your profile \u2192 Security \u2192 "
+                        + "Long-lived access tokens. A separate non-admin user just for the TV is safest.</p>")
+                .append("<button type=submit>Connect</button></form>");
+        return page("Connect Home Assistant", sb.toString());
+    }
+
+    private String handleHa(String rawUrl, String tok) {
+        String url = HaConfig.normalizeUrl(rawUrl);
+        if (url == null) return haPage("That address doesn't look right. Example: http://192.168.1.10:8123");
+        if (tok != null) tok = tok.trim();
+        if (tok == null || tok.isEmpty()) tok = HaConfig.load(appContext).token;
+        if (!HaConfig.isPlausibleToken(tok)) return haPage("Please paste the long-lived access token.");
+        try {
+            new HaClient(url, tok).check();
+        } catch (ImmichClient.HttpStatusException e) {
+            if (e.code == 401 || e.code == 403) return haPage("Home Assistant rejected the token (HTTP " + e.code + ").");
+            return haPage("The server answered with HTTP " + e.code + ". Is this the Home Assistant address?");
+        } catch (Exception e) {
+            return haPage("Couldn't reach Home Assistant from the TV (" + e.getClass().getSimpleName()
+                    + "). Check the address and that the TV is on the same network.");
+        }
+        HaConfig.save(appContext, url, tok);
+        listener.onHomeAssistantSaved(url);
+        return page("Done", "<p class=ok>Connected to " + esc(url) + ".</p>"
+                + "<p>You can close this page. The script tiles on the TV's home screen now work.</p>");
     }
 
     // ------------------------------------------------------------ Jellyfin

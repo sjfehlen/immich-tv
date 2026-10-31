@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home Assistant "Switch Setup" tile: a handheld with neon blue / red controllers on Nintendo red. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="112dp"
+    android:height="63dp"
+    android:viewportWidth="224"
+    android:viewportHeight="126">
+    <path android:fillColor="#E60012" android:pathData="M0,0h224v126h-224z" />
+    <path android:fillColor="#1AFFFFFF" android:pathData="M0,0h224v40C150,62 70,20 0,52z" />
+    <!-- shadow -->
+    <path android:fillColor="#33000000" android:pathData="M48,96h128c0,4 -10,6 -64,6s-64,-2 -64,-6z" />
+    <!-- left controller -->
+    <path android:fillColor="#00C3E3"
+        android:pathData="M74,26L64,26Q48,26 48,42L48,78Q48,94 64,94L74,94Z" />
+    <!-- right controller -->
+    <path android:fillColor="#FF4554"
+        android:pathData="M150,26L160,26Q176,26 176,42L176,78Q176,94 160,94L150,94Z" />
+    <!-- body and screen -->
+    <path android:fillColor="#2B2B2E" android:pathData="M74,26h76v68h-76z" />
+    <path android:fillColor="#0D0F14" android:pathData="M80,32h64v56h-64z" />
+    <path android:fillColor="#14FFFFFF" android:pathData="M80,32h64l-40,56h-24z" />
+    <!-- left stick + buttons -->
+    <path android:fillColor="#1F2226"
+        android:pathData="M55,42a6,6 0,1 0,12 0a6,6 0,1 0,-12 0z" />
+    <path android:fillColor="#1F2226"
+        android:pathData="M58.5,60a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM58.5,72a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM52.5,66a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM64.5,66a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0z" />
+    <!-- right buttons + stick -->
+    <path android:fillColor="#1F2226"
+        android:pathData="M160.5,36a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM160.5,48a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM154.5,42a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM166.5,42a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0z" />
+    <path android:fillColor="#1F2226"
+        android:pathData="M157,66a6,6 0,1 0,12 0a6,6 0,1 0,-12 0z" />
+</vector>

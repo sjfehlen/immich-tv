@@ -23,3 +23,6 @@ local.properties
 *.apk
 *.aab
 secrets.properties
+# Official product photos for the Home Assistant tiles: copyrighted, kept local only.
+# Without them the app falls back to the drawn banners (drawable/banner_*.xml).
+app/src/main/res/drawable-nodpi/banner_*_photo.png

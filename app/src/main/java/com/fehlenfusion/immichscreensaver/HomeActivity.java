@@ -593,12 +593,13 @@ public final class HomeActivity extends Activity {
 
     /** The settings tile's menu. */
     private void showMenu() {
-        String[] items = {"Play Store", "TV settings", "Photos & screensaver", "All apps"};
+        String[] items = {"Play Store", "TV settings", "Photos & screensaver", "Home Assistant", "All apps"};
         new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setItems(items, (d, which) -> {
                     if (which == 0) launchPackage("com.android.vending");
                     else if (which == 1) start(new Intent(Settings.ACTION_SETTINGS));
                     else if (which == 2) start(new Intent(this, SettingsActivity.class));
+                    else if (which == 3) openHaSetup();
                     else start(new Intent(this, AllAppsActivity.class));
                 })
                 .show();
@@ -655,6 +656,7 @@ public final class HomeActivity extends Activity {
                 appsByPkg.clear();
                 for (AppsRepo.App a : apps) appsByPkg.put(a.pkg, a);
                 favorites = AppsRepo.favorites(this, apps);
+                if (HaScripts.addOnce(this, favorites)) AppsRepo.saveFavorites(this, favorites);
                 buildFavorites();
             });
         }, "home-apps").start();
@@ -669,13 +671,23 @@ public final class HomeActivity extends Activity {
         int w = Tiles.dp(this, Tiles.BANNER_W_DP), h = Tiles.dp(this, Tiles.BANNER_H_DP);
         View restore = null;
         for (final String pkg : favorites) {
-            final AppsRepo.App a = appsByPkg.get(pkg);
-            if (a == null) continue; // uninstalled
-            View tile = Tiles.appTile(this, a);
+            final View tile;
+            final String label;
+            final HaScripts.Script script = HaScripts.find(pkg);
+            if (script != null) {
+                tile = Tiles.scriptTile(this, script);
+                tile.setOnClickListener(v -> runScript(script));
+                label = script.label;
+            } else {
+                final AppsRepo.App a = appsByPkg.get(pkg);
+                if (a == null) continue; // uninstalled
+                tile = Tiles.appTile(this, a);
+                tile.setOnClickListener(v -> launch(a));
+                label = a.label;
+            }
             tile.setTag(pkg);
-            tile.setOnClickListener(v -> launch(a));
             tile.setOnLongClickListener(v -> {
-                editFavorite(pkg, a.label);
+                editFavorite(pkg, label);
                 return true;
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
@@ -713,6 +725,34 @@ public final class HomeActivity extends Activity {
                 .show();
     }
 
+    /** Runs a Home Assistant script; the first time, opens the phone setup for the address and token. */
+    private void runScript(HaScripts.Script s) {
+        final HaConfig cfg = HaConfig.load(this);
+        if (!cfg.isConnected()) {
+            Toast.makeText(this, "Connect Home Assistant first", Toast.LENGTH_SHORT).show();
+            openHaSetup();
+            return;
+        }
+        Toast.makeText(this, s.label + "\u2026", Toast.LENGTH_SHORT).show();
+        final Context app = getApplicationContext();
+        new Thread(() -> {
+            String error = null;
+            try {
+                HaClient.of(cfg).runScript(s.entityId);
+            } catch (ImmichClient.HttpStatusException e) {
+                error = e.code == 401 ? "Home Assistant rejected the token" : "Home Assistant error " + e.code;
+            } catch (Exception e) {
+                error = "Couldn't reach Home Assistant";
+            }
+            final String msg = error;
+            if (msg != null) runOnUiThread(() -> Toast.makeText(app, msg, Toast.LENGTH_LONG).show());
+        }, "ha-script").start();
+    }
+
+    private void openHaSetup() {
+        start(new Intent(this, SetupActivity.class).putExtra(SetupActivity.EXTRA_HOME_ASSISTANT, true));
+    }
+
     private void launch(AppsRepo.App a) {
         start(a.launchIntent());
     }
@@ -737,8 +777,11 @@ public final class HomeActivity extends Activity {
         if (keyCode == KeyEvent.KEYCODE_MENU) {
             View f = getCurrentFocus();
             if (f != null && f.getTag() instanceof String) {
-                AppsRepo.App a = appsByPkg.get(f.getTag());
-                if (a != null) editFavorite(a.pkg, a.label);
+                String key = (String) f.getTag();
+                HaScripts.Script s = HaScripts.find(key);
+                AppsRepo.App a = appsByPkg.get(key);
+                if (s != null) editFavorite(key, s.label);
+                else if (a != null) editFavorite(a.pkg, a.label);
                 return true;
             }
         }

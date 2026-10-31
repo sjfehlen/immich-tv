@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Home Assistant "ROG Ally Setup" tile: a black handheld with RGB-ringed sticks on a dark red glow. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="112dp"
+    android:height="63dp"
+    android:viewportWidth="224"
+    android:viewportHeight="126">
+    <path android:fillColor="#0B0B0F" android:pathData="M0,0h224v126h-224z" />
+    <path android:fillColor="#40FF0029" android:pathData="M112,63m-110,0a110,62 0,1 0,220 0a110,62 0,1 0,-220 0" />
+    <path android:fillColor="#30FF0029" android:pathData="M112,63m-70,0a70,40 0,1 0,140 0a70,40 0,1 0,-140 0" />
+    <!-- shadow -->
+    <path android:fillColor="#59000000" android:pathData="M44,98h136c0,4 -12,6 -68,6s-68,-2 -68,-6z" />
+    <!-- body: wide with rounded grips -->
+    <path android:fillColor="#141418" android:strokeColor="#34343C" android:strokeWidth="1.2"
+        android:pathData="M64,26L160,26C176,26 182,34 184,48L186,76C187,90 178,98 166,98L154,98C148,98 145,94 142,90L82,90C79,94 76,98 70,98L58,98C46,98 37,90 38,76L40,48C42,34 48,26 64,26Z" />
+    <!-- screen 16:9 -->
+    <path android:fillColor="#050507" android:pathData="M74,32h76v43h-76z" />
+    <path android:fillColor="#12FFFFFF" android:pathData="M74,32h76l-44,43h-32z" />
+    <!-- left stick with RGB ring -->
+    <path android:fillColor="#00000000" android:strokeColor="#FF2D6F" android:strokeWidth="1.8"
+        android:pathData="M51,44a8,8 0,1 0,16 0a8,8 0,1 0,-16 0z" />
+    <path android:fillColor="#2A2A31" android:pathData="M54,44a5,5 0,1 0,10 0a5,5 0,1 0,-10 0z" />
+    <!-- d-pad -->
+    <path android:fillColor="#2A2A31"
+        android:pathData="M56.5,62h5v5h5v5h-5v5h-5v-5h-5v-5h5z" />
+    <!-- face buttons -->
+    <path android:fillColor="#2A2A31"
+        android:pathData="M160.5,37a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM160.5,51a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM153.5,44a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0zM167.5,44a2.5,2.5 0,1 0,5 0a2.5,2.5 0,1 0,-5 0z" />
+    <!-- right stick with RGB ring -->
+    <path android:fillColor="#00000000" android:strokeColor="#B44DFF" android:strokeWidth="1.8"
+        android:pathData="M155,70a8,8 0,1 0,16 0a8,8 0,1 0,-16 0z" />
+    <path android:fillColor="#2A2A31" android:pathData="M158,70a5,5 0,1 0,10 0a5,5 0,1 0,-10 0z" />
+    <!-- accent slash -->
+    <path android:fillColor="#FF0029" android:pathData="M104,82h16l-2,3h-16z" />
+</vector>
