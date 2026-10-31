@@ -3,11 +3,15 @@ package com.fehlenfusion.immichscreensaver;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Outline;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.drawable.LayerDrawable;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewOutlineProvider;
+import android.view.animation.DecelerateInterpolator;
+import android.view.animation.OvershootInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -17,6 +21,26 @@ import android.widget.TextView;
 final class Tiles {
     static final int BANNER_W_DP = 112;
     static final int BANNER_H_DP = 63;
+    static final float FOCUS_SCALE = 1.15f;
+
+    /**
+     * Glass highlight layered on top of a tile or button: a vertical sheen that fades out by
+     * mid-height, a soft diagonal glint, and a hairline translucent rim.
+     */
+    static Drawable glassOverlay(Context c, float radius, boolean oval) {
+        GradientDrawable sheen = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x59FFFFFF, 0x14FFFFFF, 0x00FFFFFF, 0x00FFFFFF});
+        GradientDrawable glint = new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                new int[]{0x26FFFFFF, 0x00FFFFFF, 0x00FFFFFF});
+        GradientDrawable rim = new GradientDrawable();
+        rim.setColor(Color.TRANSPARENT);
+        rim.setStroke(Math.max(1, dp(c, 1.5f)), 0x8CFFFFFF);
+        for (GradientDrawable g : new GradientDrawable[]{sheen, glint, rim}) {
+            if (oval) g.setShape(GradientDrawable.OVAL);
+            else g.setCornerRadius(radius);
+        }
+        return new LayerDrawable(new Drawable[]{sheen, glint, rim});
+    }
 
     private Tiles() {}
 
@@ -65,15 +89,17 @@ final class Tiles {
             tile.addView(inner, new FrameLayout.LayoutParams(-1, -1));
         }
 
-        // Focus ring drawn as the foreground so it sits above the banner.
-        final GradientDrawable ring = new GradientDrawable();
-        ring.setCornerRadius(radius);
-        ring.setStroke(dp(c, 3), Color.WHITE);
-        ring.setColor(Color.TRANSPARENT);
+        // "Liquid glass" focus: a soft top sheen and a faint light rim drawn over the banner,
+        // plus lift, shadow and a springy zoom. No hard border.
+        final Drawable glass = glassOverlay(c, radius, false);
         tile.setOnFocusChangeListener((v, has) -> {
-            ((FrameLayout) v).setForeground(has ? ring : null);
-            v.animate().scaleX(has ? 1.08f : 1f).scaleY(has ? 1.08f : 1f).setDuration(120);
-            v.setElevation(has ? dp(c, 8) : 0);
+            ((FrameLayout) v).setForeground(has ? glass : null);
+            v.animate()
+                    .scaleX(has ? FOCUS_SCALE : 1f).scaleY(has ? FOCUS_SCALE : 1f)
+                    .translationY(has ? -dp(c, 4) : 0f)
+                    .setInterpolator(has ? new OvershootInterpolator(1.4f) : new DecelerateInterpolator())
+                    .setDuration(has ? 260 : 160);
+            v.setElevation(has ? dp(c, 18) : 0);
         });
         return tile;
     }
@@ -112,18 +138,25 @@ final class Tiles {
         b.setGravity(Gravity.CENTER);
         b.setFocusable(true);
         b.setClickable(true);
-        final GradientDrawable normal = new GradientDrawable();
-        normal.setShape(GradientDrawable.OVAL);
-        normal.setColor(0x4D000000);
-        normal.setStroke(dp(c, 1), 0x66FFFFFF);
-        final GradientDrawable focused = new GradientDrawable();
-        focused.setShape(GradientDrawable.OVAL);
-        focused.setColor(0x80FFFFFF);
-        focused.setStroke(dp(c, 2), Color.WHITE);
-        b.setBackground(normal);
+        // Frosted glass disc: translucent fill and light rim; brighter and lifted when focused.
+        final GradientDrawable normalFill = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x40FFFFFF, 0x1AFFFFFF});
+        normalFill.setShape(GradientDrawable.OVAL);
+        normalFill.setStroke(Math.max(1, dp(c, 1)), 0x4DFFFFFF);
+        final GradientDrawable focusFill = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x73FFFFFF, 0x33FFFFFF});
+        focusFill.setShape(GradientDrawable.OVAL);
+        final Drawable focused = new LayerDrawable(new Drawable[]{focusFill, glassOverlay(c, 0, true)});
+        b.setBackground(normalFill);
+        b.setOutlineProvider(ViewOutlineProvider.BACKGROUND);
         b.setOnFocusChangeListener((v, has) -> {
-            v.setBackground(has ? focused : normal);
-            v.animate().scaleX(has ? 1.1f : 1f).scaleY(has ? 1.1f : 1f).setDuration(120);
+            v.setBackground(has ? focused : normalFill);
+            v.animate()
+                    .scaleX(has ? FOCUS_SCALE : 1f).scaleY(has ? FOCUS_SCALE : 1f)
+                    .translationY(has ? -dp(c, 3) : 0f)
+                    .setInterpolator(has ? new OvershootInterpolator(1.4f) : new DecelerateInterpolator())
+                    .setDuration(has ? 260 : 160);
+            v.setElevation(has ? dp(c, 14) : 0);
         });
         return b;
     }

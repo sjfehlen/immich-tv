@@ -196,7 +196,7 @@ public final class HomeActivity extends Activity {
         favScroll.setHorizontalScrollBarEnabled(false);
         favScroll.setClipToPadding(false);
         int edge = Tiles.dp(this, 16);
-        favScroll.setPadding(edge, Tiles.dp(this, 8), edge, Tiles.dp(this, 8));
+        favScroll.setPadding(edge, Tiles.dp(this, 16), edge, Tiles.dp(this, 12)); // room for zoom + lift
         favRow = new LinearLayout(this);
         favRow.setOrientation(LinearLayout.HORIZONTAL);
         favRow.setGravity(Gravity.CENTER_VERTICAL);
@@ -304,7 +304,7 @@ public final class HomeActivity extends Activity {
                 else if (focusLabel.getText().toString().equals(a.label)) focusLabel.setText("");
             });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(w, h);
-            lp.rightMargin = Tiles.dp(this, 20);
+            lp.rightMargin = Tiles.dp(this, 24); // 15% zoom needs ~8 dp each side
             favRow.addView(tile, lp);
             if (pkg.equals(focusedPkg)) restore = tile;
         }

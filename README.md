@@ -38,8 +38,8 @@ So Google TV remains Android's Home, and the **Immich Home button** accessibilit
 
 - when a launcherx home screen comes to the front, it opens `HomeActivity`;
 - a short Home press while launcherx is already showing does the same (long press is left alone);
-- once per boot it opens an invisible activity so a launcherx home drawn before the service bound
-  still gets redirected;
+- whenever the service binds (boot, or after this app is updated) it briefly opens an invisible
+  activity, so a launcherx home that was already on screen still gets redirected;
 - it starts `HomeActivity` as a normal app (not a Home intent), so launcherx stays the home process
   and keeps handling the remote's YouTube/Netflix buttons;
 - it stops after 3 failed starts and pauses if it ever fires in a tight loop.

@@ -2,14 +2,12 @@ package com.fehlenfusion.immichscreensaver;
 
 import android.accessibilityservice.AccessibilityService;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.ViewConfiguration;
@@ -26,8 +24,8 @@ import java.util.Set;
  * - When a launcherx HOME activity comes to the front, open HomeActivity instead.
  * - A short Home press while launcherx is already in front (no window change) opens it too;
  *   a long press is left to Google TV (quick settings).
- * - Once per boot, an invisible ProbeActivity triggers a window event in case launcherx was
- *   drawn before Android bound this service.
+ * - Whenever the service binds (boot, app update), an invisible ProbeActivity triggers a window
+ *   event in case launcherx was already on screen.
  * - HomeActivity is started like an app, not as a Home intent, so launcherx stays the home
  *   process and keeps handling the remote's YouTube/Netflix buttons.
  * - Safety: stops redirecting after 3 failed starts, and pauses if it fires in a tight loop.
@@ -39,7 +37,6 @@ public final class HomeRedirectService extends AccessibilityService {
     private static final String TAG = "ImmichHome";
     private static final String STOCK_HOME_PKG = "com.google.android.apps.tv.launcherx";
     private static final long HOME_KEY_DELAY_MS = 250;
-    private static final long BOOT_WINDOW_MS = 3 * 60 * 1000L;
     private static final int MAX_FAILURES = 3;
     private static final int LOOP_LIMIT = 6;          // redirects ...
     private static final long LOOP_WINDOW_MS = 10_000; // ... within this window = loop
@@ -113,13 +110,13 @@ public final class HomeRedirectService extends AccessibilityService {
         }
     }
 
-    /** Launcherx is often on screen before this service is bound at boot; nudge a window change once. */
+    /**
+     * Launcherx is often already on screen when this service binds: at boot, and after this app is
+     * updated (the update closes HomeActivity, so the TV falls back to launcherx). Briefly open an
+     * invisible activity so whatever is in front sends a window event; if it is launcherx's home,
+     * onAccessibilityEvent redirects. Anything else in front is simply resumed again.
+     */
     private void probeAtBoot() {
-        if (Build.VERSION.SDK_INT < 24 || SystemClock.elapsedRealtime() > BOOT_WINDOW_MS) return;
-        int boot = Settings.Global.getInt(getContentResolver(), Settings.Global.BOOT_COUNT, -1);
-        SharedPreferences prefs = getSharedPreferences("boot", MODE_PRIVATE);
-        if (boot < 0 || prefs.getInt("probe_boot", -1) == boot) return;
-        prefs.edit().putInt("probe_boot", boot).apply();
         try {
             startActivity(new Intent(this, ProbeActivity.class)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_NO_ANIMATION));
