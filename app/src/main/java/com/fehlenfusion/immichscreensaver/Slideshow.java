@@ -254,7 +254,7 @@ final class Slideshow {
         submit(() -> {
             List<String> ids = null;
             try {
-                ids = c.fetchImageIds(albums);
+                ids = Playlist.ordered(c.fetchPhotos(albums), prefs.order);
             } catch (Throwable t) {
                 logFailure("album", t);
             }
@@ -272,7 +272,7 @@ final class Slideshow {
         }
         showHint(null);
         retryDelay = RETRY_MIN_MS;
-        playlist = new Playlist(ids, random);
+        playlist = new Playlist(ids, random, prefs.order == Prefs.ORDER_SHUFFLE);
         prefetchNext();
     }
 

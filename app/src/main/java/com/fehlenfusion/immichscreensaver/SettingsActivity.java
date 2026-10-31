@@ -34,8 +34,9 @@ public final class SettingsActivity extends Activity {
     private boolean backdropRequested;
     private TextView subtitle;
     private TextView footer;
-    private TextView serverValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
-    private View previewRow, serverRow;
+    private TextView albumsValue, serverValue, orderValue, durationValue, styleValue, zoomValue, clockValue, infoValue, dimValue;
+    private View previewRow, albumsRow, serverRow;
+    private String backdropFor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -96,8 +97,10 @@ public final class SettingsActivity extends Activity {
 
         previewRow = row(list, "Preview screensaver", v -> openPreview());
         ((TextView) ((LinearLayout) previewRow).getChildAt(1)).setText("▶");
-        serverValue = value(serverRow = row(list, "Server & albums",
+        albumsValue = value(albumsRow = row(list, "Albums", v -> openAlbums()));
+        serverValue = value(serverRow = row(list, "Server",
                 v -> startActivity(new Intent(this, SetupActivity.class))));
+        orderValue = value(row(list, "Order", v -> { prefs.order = (prefs.order + 1) % 3; save(); }));
         durationValue = value(row(list, "Photo duration", v -> { prefs.nextDuration(); save(); }));
         styleValue = value(row(list, "Photo style", v -> { prefs.style = (prefs.style + 1) % 3; save(); }));
         zoomValue = value(row(list, "Slow zoom", v -> { prefs.zoom = !prefs.zoom; save(); }));
@@ -179,11 +182,15 @@ public final class SettingsActivity extends Activity {
         if (c.isComplete()) {
             subtitle.setText("Showing " + (c.albumName == null ? "your album" : "“" + c.albumName + "”")
                     + " from " + c.serverUrl);
-            serverValue.setText(c.albumIds.size() == 1 ? "1 album" : c.albumIds.size() + " albums");
+            albumsValue.setText(c.albumName != null ? c.albumName
+                    : (c.albumIds.size() == 1 ? "1 album" : c.albumIds.size() + " albums"));
+            serverValue.setText(c.serverUrl.replaceFirst("^https?://", ""));
         } else {
-            subtitle.setText("Not connected yet. Select “Server & albums” to scan a QR code with your phone.");
+            subtitle.setText("Not connected yet. Select “Server” to scan a QR code with your phone.");
+            albumsValue.setText("");
             serverValue.setText("Set up");
         }
+        orderValue.setText(Prefs.orderLabel(prefs.order));
         durationValue.setText(Prefs.durationLabel(prefs.durationSec));
         styleValue.setText(Prefs.styleLabel(prefs.style));
         zoomValue.setText(prefs.zoom ? "On" : "Off");
@@ -200,7 +207,9 @@ public final class SettingsActivity extends Activity {
                     + "screensaver_components " + DREAM_COMPONENT);
         }
 
-        if (getCurrentFocus() == null) (c.isComplete() ? previewRow : serverRow).requestFocus();
+        if (getCurrentFocus() == null) {
+            (c.isComplete() ? previewRow : (c.serverUrl != null ? albumsRow : serverRow)).requestFocus();
+        }
     }
 
     /** TRUE/FALSE if readable, null if the system does not let us read the setting. */
@@ -214,6 +223,15 @@ public final class SettingsActivity extends Activity {
         }
     }
 
+    private void openAlbums() {
+        Config c = Config.load(this);
+        if (c.serverUrl == null || c.apiKey == null) {
+            startActivity(new Intent(this, SetupActivity.class));
+        } else {
+            startActivity(new Intent(this, AlbumsActivity.class));
+        }
+    }
+
     private void openPreview() {
         if (!Config.load(this).isComplete()) {
             startActivity(new Intent(this, SetupActivity.class));
@@ -224,10 +242,12 @@ public final class SettingsActivity extends Activity {
 
     /** Loads the album cover at thumbnail size and blurs it into a tiny backdrop. */
     private void loadBackdrop() {
-        if (backdropRequested) return;
         final Config c = Config.load(this);
         if (!c.isComplete()) return;
+        String key = c.serverUrl + "|" + c.albumIds.get(0);
+        if (backdropRequested && key.equals(backdropFor)) return; // reload only if the album changed
         backdropRequested = true;
+        backdropFor = key;
         new Thread(() -> {
             Bitmap blurred = null;
             try {
@@ -250,8 +270,9 @@ public final class SettingsActivity extends Activity {
                     result.recycle();
                     return;
                 }
-                backdropBitmap = result;
                 backdrop.setImageBitmap(result);
+                if (backdropBitmap != null) backdropBitmap.recycle();
+                backdropBitmap = result;
                 backdrop.animate().alpha(1f).setDuration(800);
             });
         }, "immich-backdrop").start();

@@ -12,12 +12,16 @@ final class Prefs {
     static final int STYLE_BLUR = 0;  // fit, blurred copy of the photo behind
     static final int STYLE_FIT = 1;   // fit, black bars
     static final int STYLE_FILL = 2;  // crop to fill
+    static final int ORDER_SHUFFLE = 0;
+    static final int ORDER_NEWEST = 1;
+    static final int ORDER_OLDEST = 2;
     static final int CLOCK_FULL = 0;
     static final int CLOCK_TIME = 1;
     static final int CLOCK_OFF = 2;
 
     int durationSec = 20;
     int style = STYLE_BLUR;
+    int order = ORDER_SHUFFLE;
     boolean zoom = false;
     int clock = CLOCK_FULL;
     boolean info = true;
@@ -28,6 +32,7 @@ final class Prefs {
         Prefs r = new Prefs();
         r.durationSec = p.getInt("duration", r.durationSec);
         r.style = clamp(p.getInt("style", r.style), 0, 2);
+        r.order = clamp(p.getInt("order", r.order), 0, 2);
         r.zoom = p.getBoolean("zoom", r.zoom);
         r.clock = clamp(p.getInt("clock", r.clock), 0, 2);
         r.info = p.getBoolean("info", r.info);
@@ -40,6 +45,7 @@ final class Prefs {
         ctx.getSharedPreferences(FILE, Context.MODE_PRIVATE).edit()
                 .putInt("duration", durationSec)
                 .putInt("style", style)
+                .putInt("order", order)
                 .putBoolean("zoom", zoom)
                 .putInt("clock", clock)
                 .putBoolean("info", info)
@@ -68,6 +74,14 @@ final class Prefs {
             case STYLE_FIT: return "Fit, black bars";
             case STYLE_FILL: return "Fill screen (crop)";
             default: return "Fit, blurred background";
+        }
+    }
+
+    static String orderLabel(int order) {
+        switch (order) {
+            case ORDER_NEWEST: return "Newest first";
+            case ORDER_OLDEST: return "Oldest first";
+            default: return "Shuffle";
         }
     }
 

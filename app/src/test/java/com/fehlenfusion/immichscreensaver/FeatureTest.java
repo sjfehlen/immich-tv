@@ -79,4 +79,20 @@ public class FeatureTest {
         assertEquals("5 minutes", Prefs.durationLabel(300));
         assertEquals("20 seconds", Prefs.durationLabel(20));
     }
+
+    @Test
+    public void orderSortsByTakenDateAndSequentialPlaylistLoops() throws Exception {
+        String C = "33333333-3333-4333-8333-333333333333";
+        java.util.List<AssetParser.Photo> photos = AssetParser.photos(new org.json.JSONArray("["
+                + "{\"id\":\"" + A + "\",\"type\":\"IMAGE\",\"localDateTime\":\"2021-05-01T10:00:00.000Z\"},"
+                + "{\"id\":\"" + B + "\",\"type\":\"IMAGE\",\"localDateTime\":\"2024-01-01T10:00:00.000Z\"},"
+                + "{\"id\":\"" + C + "\",\"type\":\"IMAGE\",\"fileCreatedAt\":\"2019-12-31T10:00:00.000Z\"}]"));
+        assertEquals(Arrays.asList(B, A, C), Playlist.ordered(photos, Prefs.ORDER_NEWEST));
+        assertEquals(Arrays.asList(C, A, B), Playlist.ordered(photos, Prefs.ORDER_OLDEST));
+        assertEquals(Arrays.asList(A, B, C), Playlist.ordered(photos, Prefs.ORDER_SHUFFLE));
+
+        Playlist p = new Playlist(Arrays.asList(B, A, C), new java.util.Random(), false);
+        assertEquals(Arrays.asList(B, A, C, B, A), Arrays.asList(p.next(), p.next(), p.next(), p.next(), p.next()));
+        assertEquals("Shuffle", Prefs.orderLabel(Prefs.ORDER_SHUFFLE));
+    }
 }

@@ -1,6 +1,6 @@
 # Immich Screensaver for Android TV
 
-A very small (~55 KB) Android TV screensaver (`DreamService`) that shows photos from one
+A very small (~65 KB) Android TV screensaver (`DreamService`) that shows photos from one
 [Immich](https://immich.app) album full-screen, with a clock and date in the bottom-left corner.
 Built for a Chromecast with Google TV (2 GB RAM), so it is deliberately frugal:
 
@@ -26,7 +26,9 @@ from your album:
 | Setting | Options |
 |---|---|
 | Preview screensaver | Runs it now; any button exits |
-| Server & albums | QR-code setup (below); one or more albums |
+| Albums | Tick/untick albums with the remote (saved instantly; at least one stays selected) |
+| Server | QR-code setup (below) to change the server or API key |
+| Order | Shuffle (no repeats until all shown) · Newest first · Oldest first |
 | Photo duration | 10 s, 20 s, 30 s, 1 min, 2 min, 5 min |
 | Photo style | Fit with blurred background · Fit with black bars · Fill screen (crop) |
 | Slow zoom | Ken Burns push-in (off by default: it keeps the GPU busy) |
@@ -41,7 +43,7 @@ GPU blur pass.
 
 ## Server setup (QR code)
 
-1. In the app, choose **Server & albums**. It shows a QR code.
+1. In the app, choose **Server**. It shows a QR code.
 2. Scan it with your phone (phone and TV on the same network). A setup page opens.
 3. Enter the Immich server address (e.g. `http://192.168.1.10:2283`) and an API key, then tick
    one or more albums. The TV confirms and returns to settings.
@@ -51,7 +53,7 @@ Create the API key in Immich under *Account settings → API keys* with only the
 
 The setup page is served by the TV itself only while the setup screen is open. Every link carries
 a random one-time token. The page is plain HTTP on your LAN, so set it up from your home network.
-Open the app again at any time to change the server or album.
+Albums can be changed later from the TV itself (**Albums**), without the phone.
 
 ## Build
 

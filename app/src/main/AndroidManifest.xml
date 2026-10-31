@@ -40,6 +40,11 @@
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
 
         <activity
+            android:name=".AlbumsActivity"
+            android:exported="false"
+            android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
+
+        <activity
             android:name=".PreviewActivity"
             android:exported="false"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />

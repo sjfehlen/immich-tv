@@ -26,13 +26,25 @@ final class AssetParser {
         return s != null && UUID.matcher(s).matches();
     }
 
+    /** A displayable photo and when it was taken (ISO-8601 local time, "" if unknown). */
+    static final class Photo {
+        final String id;
+        final String takenAt;
+
+        Photo(String id, String takenAt) {
+            this.id = id;
+            this.takenAt = takenAt == null ? "" : takenAt;
+        }
+    }
+
     /**
-     * Returns the ids of displayable photos: type IMAGE, not trashed, not archived, and
-     * (when the server reports it) visibility "timeline". Malformed entries are skipped.
+     * Displayable photos: type IMAGE, not trashed, not archived, and (when the server reports
+     * it) visibility "timeline". Malformed entries and duplicates are skipped.
      */
-    static List<String> imageIds(JSONArray assets) {
-        Set<String> out = new LinkedHashSet<>();
-        if (assets == null) return new ArrayList<>();
+    static List<Photo> photos(JSONArray assets) {
+        List<Photo> out = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        if (assets == null) return out;
         for (int i = 0; i < assets.length(); i++) {
             JSONObject a = assets.optJSONObject(i);
             if (a == null) continue;
@@ -43,21 +55,37 @@ final class AssetParser {
             if (a.optBoolean("isArchived", false)) continue;
             String visibility = str(a, "visibility");
             if (visibility != null && !"timeline".equals(visibility)) continue;
-            out.add(id);
+            if (!seen.add(id)) continue;
+            String taken = str(a, "localDateTime");
+            if (taken == null) taken = str(a, "fileCreatedAt");
+            out.add(new Photo(id, taken));
         }
-        return new ArrayList<>(out);
+        return out;
+    }
+
+    /** Ids of {@link #photos(JSONArray)}. */
+    static List<String> imageIds(JSONArray assets) {
+        return ids(photos(assets));
+    }
+
+    static List<String> ids(List<Photo> photos) {
+        List<String> out = new ArrayList<>(photos.size());
+        for (Photo p : photos) out.add(p.id);
+        return out;
     }
 
     /** One page of a POST /api/search/metadata response. */
     static final class SearchPage {
+        final List<Photo> photos;
         final List<String> ids;
         /** v3.2+ cursor, or null. */
         final String nextCursor;
         /** Legacy page token (numeric string), or null. */
         final String nextPage;
 
-        SearchPage(List<String> ids, String nextCursor, String nextPage) {
-            this.ids = ids;
+        SearchPage(List<Photo> photos, String nextCursor, String nextPage) {
+            this.photos = photos;
+            this.ids = ids(photos);
             this.nextCursor = nextCursor;
             this.nextPage = nextPage;
         }
@@ -67,7 +95,7 @@ final class AssetParser {
         JSONObject root = new JSONObject(json);
         JSONObject assets = root.optJSONObject("assets");
         if (assets == null) return new SearchPage(new ArrayList<>(), null, null);
-        return new SearchPage(imageIds(assets.optJSONArray("items")),
+        return new SearchPage(photos(assets.optJSONArray("items")),
                 str(assets, "nextCursor"), str(assets, "nextPage"));
     }
 

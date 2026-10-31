@@ -16,7 +16,8 @@ import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Set;
 
@@ -56,11 +57,15 @@ final class ImmichClient {
         return AssetParser.albums(new String(request("GET", "/api/albums", null, MAX_JSON_BYTES), UTF8));
     }
 
-    /** Union of displayable photo ids across all given albums (deduplicated, in order). */
-    List<String> fetchImageIds(List<String> albumIds) throws IOException, JSONException {
-        Set<String> all = new LinkedHashSet<>();
-        for (String id : albumIds) all.addAll(fetchImageIds(id));
-        return new ArrayList<>(all);
+    /** Union of displayable photos across all given albums (deduplicated, in order). */
+    List<AssetParser.Photo> fetchPhotos(List<String> albumIds) throws IOException, JSONException {
+        Map<String, AssetParser.Photo> all = new LinkedHashMap<>();
+        for (String id : albumIds) put(all, fetchPhotos(id));
+        return new ArrayList<>(all.values());
+    }
+
+    private static void put(Map<String, AssetParser.Photo> into, List<AssetParser.Photo> photos) {
+        for (AssetParser.Photo p : photos) if (!into.containsKey(p.id)) into.put(p.id, p);
     }
 
     /** The album's cover asset id, or null. One small request; used for the settings backdrop. */
@@ -86,14 +91,14 @@ final class ImmichClient {
      * 2. Immich v3.2+: POST /api/search/metadata with filter + cursor paging.
      * 3. Older search shape (albumIds/type/page) if the server rejects (2).
      */
-    List<String> fetchImageIds(String albumId) throws IOException, JSONException {
+    List<AssetParser.Photo> fetchPhotos(String albumId) throws IOException, JSONException {
         if (!AssetParser.isUuid(albumId)) throw new IOException("bad album id");
         JSONObject album = new JSONObject(
                 new String(request("GET", "/api/albums/" + albumId, null, MAX_JSON_BYTES), UTF8));
         JSONArray assets = album.optJSONArray("assets");
         int assetCount = album.optInt("assetCount", -1);
         if (assets != null && (assets.length() > 0 || assetCount == 0)) {
-            return AssetParser.imageIds(assets);
+            return AssetParser.photos(assets);
         }
         if (assetCount == 0) return new ArrayList<>();
         try {
@@ -104,8 +109,8 @@ final class ImmichClient {
         }
     }
 
-    private List<String> searchWithFilter(String albumId) throws IOException, JSONException {
-        Set<String> ids = new LinkedHashSet<>();
+    private List<AssetParser.Photo> searchWithFilter(String albumId) throws IOException, JSONException {
+        Map<String, AssetParser.Photo> ids = new LinkedHashMap<>();
         Set<String> seenCursors = new HashSet<>();
         String cursor = null;
         for (int i = 0; i < MAX_PAGES; i++) {
@@ -121,15 +126,15 @@ final class ImmichClient {
             if (cursor != null) body.put("cursor", cursor);
             AssetParser.SearchPage page = AssetParser.searchPage(new String(
                     request("POST", "/api/search/metadata", body.toString(), MAX_JSON_BYTES), UTF8));
-            ids.addAll(page.ids);
+            put(ids, page.photos);
             cursor = page.nextCursor;
             if (cursor == null || !seenCursors.add(cursor)) break;
         }
-        return new ArrayList<>(ids);
+        return new ArrayList<>(ids.values());
     }
 
-    private List<String> searchLegacy(String albumId) throws IOException, JSONException {
-        Set<String> ids = new LinkedHashSet<>();
+    private List<AssetParser.Photo> searchLegacy(String albumId) throws IOException, JSONException {
+        Map<String, AssetParser.Photo> ids = new LinkedHashMap<>();
         int page = 1;
         for (int i = 0; i < MAX_PAGES; i++) {
             JSONObject body = new JSONObject()
@@ -139,7 +144,7 @@ final class ImmichClient {
                     .put("page", page);
             AssetParser.SearchPage p = AssetParser.searchPage(new String(
                     request("POST", "/api/search/metadata", body.toString(), MAX_JSON_BYTES), UTF8));
-            ids.addAll(p.ids);
+            put(ids, p.photos);
             if (p.nextPage == null) break;
             int next;
             try {
@@ -150,7 +155,7 @@ final class ImmichClient {
             if (next <= page) break;
             page = next;
         }
-        return new ArrayList<>(ids);
+        return new ArrayList<>(ids.values());
     }
 
     /**
