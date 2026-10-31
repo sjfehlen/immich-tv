@@ -516,13 +516,13 @@ public final class HomeActivity extends Activity {
         clockBox = clock;
         root.addView(clock, new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
 
-        // Now playing (any media app): directly above the clock, part of the same block.
+        // Now playing (any media app): directly below the clock, part of the same block.
         // Up from the apps reaches it; it fades with the clock when the Jellyfin rows open.
         npView = new NowPlayingView(this, true, nowPlaying);
         npView.setVisibility(View.GONE);
         LinearLayout.LayoutParams npl = new LinearLayout.LayoutParams(-2, -2);
-        npl.bottomMargin = Tiles.dp(this, 10);
-        clock.addView(npView, 0, npl);
+        npl.topMargin = Tiles.dp(this, 10);
+        clock.addView(npView, npl);
         npView.setBackdropSource(photoHost);
 
         // Everything below the clock scrolls vertically: apps, then the Jellyfin rows.
