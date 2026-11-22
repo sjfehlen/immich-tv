@@ -264,8 +264,8 @@ adb shell cat $D/transfer/result.txt
 ```
 
 `TransferActivity` is exported (the adb shell cannot start anything else), but does nothing unless the
-`allow` marker file is in its folder; apps on the TV cannot create it (app-private storage), only adb can,
-cannot. The files contain the API key and tokens in plain text, so delete your copies when done
+`allow` marker file is in its folder. Apps on the TV cannot create it (app-private storage), only adb can,
+and each marker works once. The files contain the API key and tokens in plain text, so delete your copies when done
 (import removes the TV-side files it read).
 
 ## Undo
