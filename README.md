@@ -253,17 +253,18 @@ favourite apps, export before and import after:
 
 ```sh
 D=/sdcard/Android/data/com.fehlenfusion.immichscreensaver/files
-adb shell mkdir -p $D/transfer
+adb shell mkdir -p $D/transfer && adb shell touch $D/transfer/allow
 adb shell am start -n com.fehlenfusion.immichscreensaver/.TransferActivity --es mode export
 adb pull $D/transfer ./transfer          # includes result.txt (what was exported, never any values)
 
 # after installing the new APK (open it once first so Android creates its folder):
-adb push transfer $D/
+adb push transfer $D/ && adb shell touch $D/transfer/allow
 adb shell am start -n com.fehlenfusion.immichscreensaver/.TransferActivity --es mode import
 adb shell cat $D/transfer/result.txt
 ```
 
-`TransferActivity` is not exported and has no intent filter, so only adb can start it; apps on the TV
+`TransferActivity` is exported (the adb shell cannot start anything else), but does nothing unless the
+`allow` marker file is in its folder; apps on the TV cannot create it (app-private storage), only adb can,
 cannot. The files contain the API key and tokens in plain text, so delete your copies when done
 (import removes the TV-side files it read).
 

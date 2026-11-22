@@ -60,10 +60,10 @@
             android:exported="false"
             android:theme="@android:style/Theme.Material.NoActionBar.Fullscreen" />
 
-        <!-- Settings backup/restore over adb only: not exported, no intent filter (see TransferActivity). -->
+        <!-- Settings backup/restore over adb (see TransferActivity). Exported because the adb shell cannot start non-exported activities; it does nothing without the "allow" marker file that only adb can place in the app-private folder. -->
         <activity
             android:name=".TransferActivity"
-            android:exported="false"
+            android:exported="true"
             android:excludeFromRecents="true"
             android:noHistory="true"
             android:theme="@android:style/Theme.NoDisplay" />

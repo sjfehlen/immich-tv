@@ -14,15 +14,18 @@ import java.nio.charset.StandardCharsets;
 
 /**
  * Backup and restore of the settings over adb, so a reinstall (or a change of signing key)
- * does not mean pairing everything again. Not exported and has no intent filter, so only adb
- * (the shell user can start any activity) can run it; apps on the TV cannot.
+ * does not mean pairing everything again. Exported (the adb shell cannot start non-exported
+ * activities), so it refuses to do anything unless a marker file "allow" is in its transfer folder,
+ * which apps on the TV cannot create (app-private external storage), only adb can.
  *
  * <pre>
  * adb shell mkdir -p /sdcard/Android/data/com.fehlenfusion.immichscreensaver/files/transfer
+ * adb shell touch /sdcard/Android/data/com.fehlenfusion.immichscreensaver/files/transfer/allow
  * adb shell am start -n com.fehlenfusion.immichscreensaver/.TransferActivity --es mode export
  * adb pull /sdcard/Android/data/com.fehlenfusion.immichscreensaver/files/transfer .
  *
  * adb push transfer /sdcard/Android/data/com.fehlenfusion.immichscreensaver/files/
+ * adb shell touch /sdcard/Android/data/com.fehlenfusion.immichscreensaver/files/transfer/allow
  * adb shell am start -n com.fehlenfusion.immichscreensaver/.TransferActivity --es mode import
  * </pre>
  *
@@ -38,6 +41,12 @@ public final class TransferActivity extends Activity {
         StringBuilder log = new StringBuilder();
         try {
             if (!dir.isDirectory() && !dir.mkdirs()) throw new IllegalStateException("no transfer folder");
+            File allow = new File(dir, "allow");
+            if (!allow.isFile()) {
+                finish(); // not started from adb: do nothing, leave no trace
+                return;
+            }
+            allow.delete(); // one run per marker
             if ("export".equals(mode)) export(dir, log);
             else if ("import".equals(mode)) importAll(dir, log);
             else log.append("mode must be export or import\n");
