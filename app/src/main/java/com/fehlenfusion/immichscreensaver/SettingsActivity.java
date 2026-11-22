@@ -26,7 +26,7 @@ public final class SettingsActivity extends Activity {
     private Backdrop backdrop;
     private TextView subtitle;
     private Glass.Row preview, order, duration, style, zoom, clock, info, dim;
-    private Glass.Row homeBg, idle;
+    private Glass.Row homeBg, idle, christmas;
     private Glass.Row immich, albums, jellyfin, homeAssistant;
     private Glass.Row screensaverStatus, nowPlayingStatus, homeButtonStatus;
     private ScrollView content;
@@ -120,6 +120,7 @@ public final class SettingsActivity extends Activity {
         LinearLayout home = section(list, "Home screen");
         homeBg = Glass.add(home, Glass.row(this, "Background", v -> { prefs.homePhotos = !prefs.homePhotos; save(); }));
         idle = Glass.add(home, Glass.row(this, "Hide apps when idle", v -> { prefs.nextIdle(); save(); }));
+        christmas = Glass.add(home, Glass.row(this, "Christmas theme", v -> { prefs.christmas = !prefs.christmas; save(); }));
 
         LinearLayout accounts = section(list, "Accounts");
         jellyfin = Glass.add(accounts, Glass.row(this, "Jellyfin",
@@ -218,6 +219,7 @@ public final class SettingsActivity extends Activity {
         dim.value(onOff(prefs.dim));
         homeBg.value(prefs.homePhotos ? "Photos" : "Gradient");
         idle.value(Prefs.idleLabel(prefs.homeIdleSec));
+        christmas.value(onOff(prefs.christmas));
         JellyfinConfig jf = JellyfinConfig.load(this);
         jellyfin.value(jf.isConnected()
                 ? (jf.userName == null || jf.userName.isEmpty() ? "Connected" : jf.userName) : "Set up");

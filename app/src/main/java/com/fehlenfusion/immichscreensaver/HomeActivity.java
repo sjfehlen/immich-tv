@@ -63,6 +63,8 @@ public final class HomeActivity extends Activity {
     private View[] chrome = new View[0]; // what fades out when idle
     private NowPlaying nowPlaying;
     private NowPlayingView npView;
+    private ChristmasView xmas;
+    private TextView greeting;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean chromeHidden;
@@ -103,7 +105,9 @@ public final class HomeActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        idleSec = Prefs.load(this).homeIdleSec;
+        Prefs prefs = Prefs.load(this);
+        idleSec = prefs.homeIdleSec;
+        applyTheme(prefs.christmas);
         showChrome(false);
     }
 
@@ -514,6 +518,12 @@ public final class HomeActivity extends Activity {
         time.setLetterSpacing(-0.02f);
         time.setIncludeFontPadding(false);
         face.addView(time);
+        greeting = new TextView(this);
+        greeting.setText("Merry Christmas");
+        styleClock(greeting, 16, 0xFFFFD54F);
+        greeting.setTypeface(Tiles.MEDIUM);
+        greeting.setVisibility(View.GONE);
+        face.addView(greeting);
         clock.addView(face, new LinearLayout.LayoutParams(-2, -2));
         clockBox = clock;
         root.addView(clock, new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
@@ -585,7 +595,20 @@ public final class HomeActivity extends Activity {
         appsTile = Tiles.appsTile(this);
         appsTile.setOnClickListener(v -> start(new Intent(this, AllAppsActivity.class)));
         chrome = new View[]{bottom, pager}; // the clock stays when idle
+        // Snow and lights sit above everything and ignore input; shown only with the theme on.
+        xmas = new ChristmasView(this);
+        xmas.setVisibility(View.GONE);
+        root.addView(xmas, new FrameLayout.LayoutParams(-1, -1));
         return root;
+    }
+
+    /** Christmas theme on/off: overlay, greeting and the gradient shown when photos are off or offline. */
+    private void applyTheme(boolean christmas) {
+        xmas.setActive(christmas);
+        greeting.setVisibility(christmas ? View.VISIBLE : View.GONE);
+        rootView.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
+                christmas ? new int[]{0xFF0F3D2A, 0xFF7A1F2B, 0xFF10261C}
+                        : new int[]{0xFF2B3A67, 0xFF5B3A6E, 0xFF1C1B2E}));
     }
 
     /** The settings tile's menu: a frosted panel floating above the tile. */

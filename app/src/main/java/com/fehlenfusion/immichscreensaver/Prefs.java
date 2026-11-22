@@ -27,6 +27,8 @@ final class Prefs {
     boolean info = true;
     boolean dim = false;
     boolean homePhotos = true;
+    /** Christmas look on the home screen: snow, lights, greeting, festive fallback gradient. */
+    boolean christmas = false;
     /** Seconds of no remote input before the home screen fades to photos only; 0 = never. */
     int homeIdleSec = 30;
     static final int[] IDLE_SEC = {15, 30, 60, 120, 0};
@@ -42,6 +44,7 @@ final class Prefs {
         r.info = p.getBoolean("info", r.info);
         r.dim = p.getBoolean("dim", r.dim);
         r.homePhotos = p.getBoolean("homePhotos", r.homePhotos);
+        r.christmas = p.getBoolean("christmas", r.christmas);
         r.homeIdleSec = Math.max(0, p.getInt("homeIdle", r.homeIdleSec));
         if (r.durationSec < 5) r.durationSec = 20;
         return r;
@@ -57,6 +60,7 @@ final class Prefs {
                 .putBoolean("info", info)
                 .putBoolean("dim", dim)
                 .putBoolean("homePhotos", homePhotos)
+                .putBoolean("christmas", christmas)
                 .putInt("homeIdle", homeIdleSec)
                 .apply();
     }

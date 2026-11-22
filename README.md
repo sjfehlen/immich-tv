@@ -45,7 +45,7 @@ there; apps already on Home carry a small ✓). Your Immich photos
 cross-fade behind everything (one every 30 s; falls back to a gradient offline). After a period
 with no remote input (*Hide home apps when idle*, default 30 s) the app row fades out, leaving
 photos and the clock; the first key press only brings it back.
-The slideshow runs only while the home screen is visible. Turn the photos off under
+The slideshow runs only while the home screen is visible. *Christmas theme* (Settings → Home screen, off by default) adds falling snow, twinkling string lights, a "Merry Christmas" line and a festive fallback gradient. Turn the photos off under
 *Home screen background* in Settings.
 
 On the Chromecast with Google TV the stock launcher (`launcherx`) and the setup app
