@@ -245,6 +245,28 @@ git tag v1.1.0 && git push origin v1.1.0
 The Home Assistant console tiles use drawn banners in published builds; the product photos are
 kept out of this repo.
 
+## Back up and restore settings over adb
+
+Reinstalling, or switching between a locally built and a published APK (different signing keys), wipes
+the app's data. To keep the Immich pairing, Jellyfin and Home Assistant logins, display settings and
+favourite apps, export before and import after:
+
+```sh
+D=/sdcard/Android/data/com.fehlenfusion.immichscreensaver/files
+adb shell mkdir -p $D/transfer
+adb shell am start -n com.fehlenfusion.immichscreensaver/.TransferActivity --es mode export
+adb pull $D/transfer ./transfer          # includes result.txt (what was exported, never any values)
+
+# after installing the new APK (open it once first so Android creates its folder):
+adb push transfer $D/
+adb shell am start -n com.fehlenfusion.immichscreensaver/.TransferActivity --es mode import
+adb shell cat $D/transfer/result.txt
+```
+
+`TransferActivity` is not exported and has no intent filter, so only adb can start it; apps on the TV
+cannot. The files contain the API key and tokens in plain text, so delete your copies when done
+(import removes the TV-side files it read).
+
 ## Undo
 
 ```sh
