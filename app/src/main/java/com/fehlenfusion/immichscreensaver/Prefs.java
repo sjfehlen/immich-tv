@@ -27,7 +27,7 @@ final class Prefs {
     boolean info = true;
     boolean dim = false;
     boolean homePhotos = true;
-    /** Christmas look on the home screen: snow, lights, greeting, festive fallback gradient. */
+    /** Christmas look on the home screen: snow, lights, countdown, festive fallback gradient. */
     boolean christmas = false;
     /** Seconds of no remote input before the home screen fades to photos only; 0 = never. */
     int homeIdleSec = 30;

@@ -29,6 +29,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -64,7 +65,9 @@ public final class HomeActivity extends Activity {
     private NowPlaying nowPlaying;
     private NowPlayingView npView;
     private ChristmasView xmas;
-    private TextView greeting;
+    private TextView countdown;
+    private boolean themeOn;
+    private final Runnable tickCountdown = this::updateCountdown;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private boolean chromeHidden;
@@ -114,6 +117,7 @@ public final class HomeActivity extends Activity {
     @Override
     protected void onPause() {
         handler.removeCallbacks(hideChrome);
+        handler.removeCallbacks(tickCountdown);
         super.onPause();
     }
 
@@ -518,12 +522,11 @@ public final class HomeActivity extends Activity {
         time.setLetterSpacing(-0.02f);
         time.setIncludeFontPadding(false);
         face.addView(time);
-        greeting = new TextView(this);
-        greeting.setText("Merry Christmas");
-        styleClock(greeting, 16, 0xFFFFD54F);
-        greeting.setTypeface(Tiles.MEDIUM);
-        greeting.setVisibility(View.GONE);
-        face.addView(greeting);
+        countdown = new TextView(this);
+        styleClock(countdown, 16, 0xFFFFD54F);
+        countdown.setTypeface(Tiles.MEDIUM);
+        countdown.setVisibility(View.GONE);
+        face.addView(countdown);
         clock.addView(face, new LinearLayout.LayoutParams(-2, -2));
         clockBox = clock;
         root.addView(clock, new FrameLayout.LayoutParams(-2, -2, Gravity.TOP | Gravity.START));
@@ -602,10 +605,20 @@ public final class HomeActivity extends Activity {
         return root;
     }
 
-    /** Christmas theme on/off: overlay, greeting and the gradient shown when photos are off or offline. */
+    /** Refreshes the days-to-Christmas line and re-runs each minute while the theme is on and shown. */
+    private void updateCountdown() {
+        handler.removeCallbacks(tickCountdown);
+        if (!themeOn) return;
+        countdown.setText(ChristmasView.countdownLabel(ChristmasView.daysUntilChristmas(Calendar.getInstance())));
+        handler.postDelayed(tickCountdown, 60_000L);
+    }
+
+    /** Christmas theme on/off: overlay, countdown and the gradient shown when photos are off or offline. */
     private void applyTheme(boolean christmas) {
         xmas.setActive(christmas);
-        greeting.setVisibility(christmas ? View.VISIBLE : View.GONE);
+        themeOn = christmas;
+        countdown.setVisibility(christmas ? View.VISIBLE : View.GONE);
+        updateCountdown();
         rootView.setBackground(new GradientDrawable(GradientDrawable.Orientation.TL_BR,
                 christmas ? new int[]{0xFF0F3D2A, 0xFF7A1F2B, 0xFF10261C}
                         : new int[]{0xFF2B3A67, 0xFF5B3A6E, 0xFF1C1B2E}));

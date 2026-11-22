@@ -7,6 +7,8 @@ import android.graphics.Path;
 import android.os.SystemClock;
 import android.view.View;
 
+import java.util.Calendar;
+import java.util.GregorianCalendar;
 import java.util.Random;
 
 /**
@@ -41,6 +43,21 @@ final class ChristmasView extends View {
             speed[i] = 0.03f + r[i] * 0.012f;
             drift[i] = (rnd.nextFloat() - 0.5f) * 0.02f;
         }
+    }
+
+    /** Whole days from the date of {@code now} to the next 25 December (0 on the day itself). */
+    static int daysUntilChristmas(Calendar now) {
+        int year = now.get(Calendar.YEAR);
+        Calendar today = new GregorianCalendar(year, now.get(Calendar.MONTH), now.get(Calendar.DAY_OF_MONTH));
+        Calendar xmas = new GregorianCalendar(year, Calendar.DECEMBER, 25);
+        if (today.after(xmas)) xmas = new GregorianCalendar(year + 1, Calendar.DECEMBER, 25);
+        // Rounding absorbs the 23/25-hour days around daylight saving changes.
+        return (int) Math.round((xmas.getTimeInMillis() - today.getTimeInMillis()) / 86400000.0);
+    }
+
+    static String countdownLabel(int days) {
+        if (days == 0) return "It's Christmas Day!";
+        return days == 1 ? "1 day until Christmas" : days + " days until Christmas";
     }
 
     void setActive(boolean on) {
